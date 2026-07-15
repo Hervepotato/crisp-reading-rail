@@ -59,6 +59,38 @@
   opacity: 0.22;
 }
 
+.crisp-reading-rail .crisp-reading-rail__heading-ticks {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.crisp-reading-rail .crisp-reading-rail__heading-tick {
+  position: absolute;
+  top: calc(var(--crisp-reading-heading-progress) * 100%);
+  right: 4px;
+  display: block;
+  width: 12px;
+  height: 2px;
+  background: var(--text-normal);
+  opacity: 0.72;
+  transform: translateY(-50%);
+  transition: background-color 120ms ease, opacity 120ms ease, width 120ms ease;
+}
+
+.crisp-reading-rail .crisp-reading-rail__heading-tick[data-level="2"] {
+  width: 16px;
+}
+
+.crisp-reading-rail .crisp-reading-rail__heading-tick[data-level="3"] {
+  width: 14px;
+}
+
+.crisp-reading-rail .crisp-reading-rail__heading-tick.is-active {
+  background: var(--interactive-accent);
+  opacity: 1;
+}
+
 .crisp-reading-rail .crisp-reading-rail__active,
 .crisp-reading-rail .crisp-reading-rail__orb,
 .crisp-reading-rail .crisp-reading-rail__progress {
@@ -155,6 +187,7 @@
 
 @media (prefers-reduced-motion: reduce) {
   .crisp-reading-rail .crisp-reading-rail__tick,
+  .crisp-reading-rail .crisp-reading-rail__heading-tick,
   .crisp-reading-rail .crisp-reading-rail__label {
     transition: none;
   }

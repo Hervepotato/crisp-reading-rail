@@ -34,6 +34,37 @@ describe("ReadingRailView", () => {
     expect(host.querySelector('[role="slider"]')?.getAttribute("aria-valuenow")).toBe("33");
   });
 
+  it("renders semantic heading ticks independently from fine progress ticks", () => {
+    const host = document.createElement("div");
+    const view = ReadingRailView.mount(host, {
+      onHeadingSelect: vi.fn(),
+      onProgressSelect: vi.fn(),
+    });
+    const entries = [
+      { ...makeEntry(), text: "Section", level: 2, progress: 0.1 },
+      { ...makeEntry(), text: "Topic", level: 3, progress: 0.5 },
+      { ...makeEntry(), text: "Detail", level: 4, progress: 0.9 },
+    ];
+
+    view.setOutline(entries, 40);
+    view.setActiveHeading(1);
+
+    expect(host.querySelectorAll(".crisp-reading-rail__tick")).toHaveLength(40);
+    expect([
+      ...host.querySelectorAll<HTMLElement>(".crisp-reading-rail__heading-tick"),
+    ].map((tick) => [
+      tick.dataset.level,
+      tick.style.getPropertyValue("--crisp-reading-heading-progress"),
+    ])).toEqual([
+      ["2", "0.1"],
+      ["3", "0.5"],
+      ["4", "0.9"],
+    ]);
+    expect(host.querySelectorAll(
+      ".crisp-reading-rail__heading-tick.is-active",
+    )).toHaveLength(1);
+  });
+
   it("routes label, pointer, and focused keyboard navigation locally", () => {
     const onHeadingSelect = vi.fn();
     const onProgressSelect = vi.fn();

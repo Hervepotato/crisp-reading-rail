@@ -10,10 +10,12 @@ export class ReadingRailView {
   private readonly root: HTMLElement;
   private readonly track: HTMLElement;
   private readonly ticksContainer: HTMLElement;
+  private readonly headingTicksContainer: HTMLElement;
   private readonly progressLabel: HTMLElement;
   private readonly labelsContainer: HTMLElement;
   private readonly callbacks: RailViewCallbacks;
   private ticks: HTMLElement[] = [];
+  private headingTicks: HTMLElement[] = [];
   private labels: HTMLButtonElement[] = [];
   private currentProgress = 0;
 
@@ -38,6 +40,10 @@ export class ReadingRailView {
     this.ticksContainer.className = "crisp-reading-rail__ticks";
     this.ticksContainer.setAttribute("aria-hidden", "true");
 
+    this.headingTicksContainer = document.createElement("div");
+    this.headingTicksContainer.className = "crisp-reading-rail__heading-ticks";
+    this.headingTicksContainer.setAttribute("aria-hidden", "true");
+
     const active = document.createElement("div");
     active.className = "crisp-reading-rail__active";
     active.setAttribute("aria-hidden", "true");
@@ -56,6 +62,7 @@ export class ReadingRailView {
 
     this.track.append(
       this.ticksContainer,
+      this.headingTicksContainer,
       active,
       orb,
       this.progressLabel,
@@ -83,6 +90,19 @@ export class ReadingRailView {
       return tick;
     });
     this.ticksContainer.replaceChildren(...this.ticks);
+
+    this.headingTicks = entries.map((entry) => {
+      const tick = document.createElement("span");
+      tick.className = "crisp-reading-rail__heading-tick";
+      tick.dataset.level = String(entry.level);
+      tick.style.setProperty(
+        "--crisp-reading-heading-progress",
+        clamp01(entry.progress).toString(),
+      );
+      tick.setAttribute("aria-hidden", "true");
+      return tick;
+    });
+    this.headingTicksContainer.replaceChildren(...this.headingTicks);
 
     this.labels = entries.map((entry) => {
       const label = document.createElement("button");
@@ -119,6 +139,9 @@ export class ReadingRailView {
         label.removeAttribute("aria-current");
       }
     });
+    this.headingTicks.forEach((tick, tickIndex) => {
+      tick.classList.toggle("is-active", tickIndex === index);
+    });
   }
 
   setExpanded(expanded: boolean): void {
@@ -134,6 +157,7 @@ export class ReadingRailView {
     this.track.removeEventListener("keydown", this.handleKeyDown);
     this.root.remove();
     this.ticks = [];
+    this.headingTicks = [];
     this.labels = [];
   }
 
