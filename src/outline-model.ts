@@ -13,10 +13,38 @@ export function buildOutlineEntries(
   rendered: readonly RenderedHeading[],
   contentTop: number,
   maxScroll: number,
+  sourceLineCount?: number,
 ): OutlineEntry[] {
   const eligible = headings.filter(
     (heading) => heading.level >= MIN_LEVEL && heading.level <= MAX_LEVEL,
   );
+  const virtualized = sourceLineCount !== undefined
+    && sourceLineCount > 1
+    && rendered.length < eligible.length;
+  if (virtualized) {
+    const lastSourceLine = sourceLineCount - 1;
+    let renderedIndex = 0;
+    return eligible.map((source) => {
+      const candidate = rendered[renderedIndex];
+      const target = candidate
+        && candidate.text === source.text
+        && candidate.level === source.level
+        ? candidate.target
+        : null;
+      if (target) {
+        renderedIndex += 1;
+      }
+      const progress = clamp01(source.sourceLine / lastSourceLine);
+      return {
+        ...source,
+        documentY: contentTop + progress * maxScroll,
+        progress,
+        labelY: 0,
+        target,
+      };
+    });
+  }
+
   const count = Math.min(eligible.length, rendered.length);
   const entries: OutlineEntry[] = [];
 

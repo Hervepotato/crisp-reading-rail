@@ -35,6 +35,22 @@ describe("outline model", () => {
     ]);
   });
 
+  it("keeps the full outline when Obsidian virtualizes off-screen headings", () => {
+    const detailTarget = {} as HTMLElement;
+    const rendered = [
+      { text: "Detail", level: 3, documentY: 260, target: detailTarget },
+    ];
+    const result = buildOutlineEntries(headings, rendered, 100, 1000, 13);
+    expect(result.map((entry) => ({
+      text: entry.text,
+      progress: entry.progress,
+      hasTarget: entry.target !== null,
+    }))).toEqual([
+      { text: "First", progress: 0.25, hasTarget: false },
+      { text: "Detail", progress: 0.75, hasTarget: true },
+    ]);
+  });
+
   it("preserves order while separating colliding labels", () => {
     const entries = [
       { text: "A", level: 2, sourceLine: 1, documentY: 10, progress: 0.1, labelY: 0, target: {} as HTMLElement },

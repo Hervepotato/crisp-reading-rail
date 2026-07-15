@@ -26,6 +26,9 @@ describe("ReadingRailView", () => {
 
     expect(host.querySelectorAll('[role="slider"]')).toHaveLength(1);
     expect(host.querySelectorAll("button.crisp-reading-rail__label")).toHaveLength(1);
+    expect(host.querySelector('[role="slider"]')?.contains(
+      host.querySelector("button.crisp-reading-rail__label"),
+    )).toBe(false);
     expect(host.querySelectorAll(".crisp-reading-rail__tick")).toHaveLength(40);
     expect(host.textContent).toContain("0.33");
     expect(host.querySelector('[role="slider"]')?.getAttribute("aria-valuenow")).toBe("33");
@@ -43,11 +46,29 @@ describe("ReadingRailView", () => {
     expect(onHeadingSelect).toHaveBeenCalledWith(expect.objectContaining({ text: "First" }));
 
     const slider = host.querySelector<HTMLElement>('[role="slider"]')!;
+    document.body.append(host);
+    slider.getBoundingClientRect = () => ({
+      top: 0,
+      left: 0,
+      right: 20,
+      bottom: 100,
+      width: 20,
+      height: 100,
+      x: 0,
+      y: 0,
+      toJSON: () => ({}),
+    });
+    slider.dispatchEvent(new MouseEvent("pointerdown", {
+      bubbles: true,
+      clientY: 20,
+    }));
+    expect(document.activeElement).toBe(slider);
+
     slider.dispatchEvent(new KeyboardEvent("keydown", { key: "PageDown", bubbles: true }));
     expect(onProgressSelect).toHaveBeenLastCalledWith(0.6);
 
     slider.dispatchEvent(new KeyboardEvent("keydown", { key: "x", bubbles: true }));
-    expect(onProgressSelect).toHaveBeenCalledTimes(1);
+    expect(onProgressSelect).toHaveBeenCalledTimes(2);
   });
 
   it("updates active and visible semantics", () => {

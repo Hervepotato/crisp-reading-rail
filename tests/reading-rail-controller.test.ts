@@ -6,6 +6,7 @@ import {
   type RailControllerEnvironment,
   type RailView,
 } from "../src/reading-rail-controller";
+import type { RailViewCallbacks } from "../src/reading-rail-view";
 
 function setMetric(element: HTMLElement, key: string, value: number): void {
   Object.defineProperty(element, key, { configurable: true, value });
@@ -98,7 +99,7 @@ function makeEnvironment() {
 
 function makeView(): RailView & {
   visible: boolean;
-  callbacks?: { onProgressSelect(progress: number): void };
+  callbacks?: RailViewCallbacks;
 } {
   return {
     visible: false,
@@ -191,6 +192,73 @@ describe("ReadingRailController", () => {
     clock.flushFrame();
     view.callbacks?.onProgressSelect(0.5);
     expect(scroller.scrollTo).toHaveBeenCalledWith({ top: 500, behavior: "auto" });
+    controller.destroy();
+  });
+
+  it("uses an immediate jump when smooth scrolling would cross many viewports", () => {
+    const { host, scroller } = makeFixture();
+    setMetric(scroller, "scrollHeight", 10000);
+    setMetric(scroller, "scrollTop", 5000);
+    const clock = makeEnvironment();
+    const view = makeView();
+    const controller = new ReadingRailController({
+      host,
+      scroller,
+      preview: scroller,
+      getHeadings: () => [],
+      environment: clock.environment,
+      createView: (_host, callbacks) => {
+        view.callbacks = callbacks;
+        return view;
+      },
+    });
+    controller.start();
+    clock.flushFrame();
+    view.callbacks?.onProgressSelect(0);
+    expect(scroller.scrollTo).toHaveBeenLastCalledWith({ top: 0, behavior: "auto" });
+    controller.destroy();
+  });
+
+  it("corrects a virtualized heading jump after its target renders", () => {
+    const { host, scroller } = makeFixture();
+    const clock = makeEnvironment();
+    const view = makeView();
+    const controller = new ReadingRailController({
+      host,
+      scroller,
+      preview: scroller,
+      getHeadings: () => [{ text: "First", level: 2, sourceLine: 50 }],
+      getLineCount: () => 101,
+      environment: clock.environment,
+      createView: (_host, callbacks) => {
+        view.callbacks = callbacks;
+        return view;
+      },
+    });
+    controller.start();
+    clock.flushFrame();
+
+    const firstOutline = vi.mocked(view.setOutline).mock.calls[0][0];
+    view.callbacks?.onHeadingSelect(firstOutline[0]);
+    expect(scroller.scrollTo).toHaveBeenLastCalledWith({ top: 500, behavior: "smooth" });
+
+    const heading = document.createElement("h2");
+    heading.textContent = "First";
+    heading.getBoundingClientRect = () => ({
+      top: 100,
+      left: 0,
+      right: 0,
+      bottom: 120,
+      width: 0,
+      height: 20,
+      x: 0,
+      y: 100,
+      toJSON: () => ({}),
+    });
+    scroller.append(heading);
+    setMetric(scroller, "scrollTop", 500);
+    controller.refresh();
+    expect(scroller.scrollTo).toHaveBeenLastCalledWith({ top: 600, behavior: "smooth" });
     controller.destroy();
   });
 });

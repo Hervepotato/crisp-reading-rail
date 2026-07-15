@@ -50,6 +50,7 @@ export interface ReadingRailControllerOptions {
   scroller: HTMLElement;
   preview: HTMLElement;
   getHeadings(): readonly OutlineHeading[];
+  getLineCount?(): number;
   environment?: RailControllerEnvironment;
   createView?(host: HTMLElement, callbacks: RailViewCallbacks): RailView;
 }
@@ -76,6 +77,7 @@ export class ReadingRailController {
   private readonly scroller: HTMLElement;
   private readonly preview: HTMLElement;
   private readonly getHeadings: () => readonly OutlineHeading[];
+  private readonly getLineCount: () => number;
   private readonly environment: RailControllerEnvironment;
   private readonly createView: (host: HTMLElement, callbacks: RailViewCallbacks) => RailView;
   private view: RailView | null = null;
@@ -84,6 +86,7 @@ export class ReadingRailController {
   private entries: OutlineEntry[] = [];
   private frameId: number | null = null;
   private refreshTimer: number | null = null;
+  private pendingHeadingLine: number | null = null;
   private needsMeasurement = false;
   private started = false;
   private destroyed = false;
@@ -93,6 +96,7 @@ export class ReadingRailController {
     this.scroller = options.scroller;
     this.preview = options.preview;
     this.getHeadings = options.getHeadings;
+    this.getLineCount = options.getLineCount ?? (() => 0);
     this.environment = options.environment ?? createDefaultEnvironment(options.host);
     this.createView = options.createView ?? ((host, callbacks) => (
       ReadingRailView.mount(host, callbacks)
@@ -142,6 +146,7 @@ export class ReadingRailController {
       rendered,
       0,
       maxScroll,
+      this.getLineCount(),
     );
     this.entries = resolveLabelPositions(
       unresolvedEntries,
@@ -153,6 +158,7 @@ export class ReadingRailController {
     this.view.setOutline(this.entries, calculateTickCount(trackHeight));
     this.view.setVisible(visible);
     this.updateScrollState();
+    this.finishPendingHeadingNavigation();
   }
 
   destroy(): void {
@@ -176,6 +182,7 @@ export class ReadingRailController {
     this.view?.destroy();
     this.view = null;
     this.entries = [];
+    this.pendingHeadingLine = null;
   }
 
   private readonly handleScroll = (): void => {
@@ -232,18 +239,56 @@ export class ReadingRailController {
   }
 
   private navigateToHeading(entry: OutlineEntry): void {
+    if (entry.target?.isConnected) {
+      this.pendingHeadingLine = null;
+      this.scrollToTop(this.getRenderedHeadingTop(entry.target));
+      return;
+    }
+    this.pendingHeadingLine = entry.sourceLine;
     this.scrollTo(clamp01(entry.progress));
   }
 
   private navigateToProgress(progress: number): void {
+    this.pendingHeadingLine = null;
     this.scrollTo(clamp01(progress));
+  }
+
+  private finishPendingHeadingNavigation(): void {
+    if (this.pendingHeadingLine === null) {
+      return;
+    }
+    const entry = this.entries.find((candidate) => (
+      candidate.sourceLine === this.pendingHeadingLine
+      && candidate.target?.isConnected
+    ));
+    if (!entry?.target) {
+      return;
+    }
+    this.pendingHeadingLine = null;
+    this.scrollToTop(this.getRenderedHeadingTop(entry.target));
+  }
+
+  private getRenderedHeadingTop(target: HTMLElement): number {
+    return target.getBoundingClientRect().top
+      - this.scroller.getBoundingClientRect().top
+      + this.scroller.scrollTop;
   }
 
   private scrollTo(progress: number): void {
     const maxScroll = Math.max(0, this.scroller.scrollHeight - this.scroller.clientHeight);
+    this.scrollToTop(progress * maxScroll);
+  }
+
+  private scrollToTop(top: number): void {
+    const maxScroll = Math.max(0, this.scroller.scrollHeight - this.scroller.clientHeight);
+    const safeTop = Math.min(maxScroll, Math.max(0, top));
+    const crossesManyViewports = Math.abs(safeTop - this.scroller.scrollTop)
+      > this.scroller.clientHeight * 3;
     this.scroller.scrollTo({
-      top: progress * maxScroll,
-      behavior: this.environment.reducedMotion() ? "auto" : "smooth",
+      top: safeTop,
+      behavior: this.environment.reducedMotion() || crossesManyViewports
+        ? "auto"
+        : "smooth",
     });
   }
 }

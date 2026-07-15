@@ -59,9 +59,8 @@ export class ReadingRailView {
       active,
       orb,
       this.progressLabel,
-      this.labelsContainer,
     );
-    this.root.append(this.track);
+    this.root.append(this.track, this.labelsContainer);
     host.append(this.root);
 
     this.track.addEventListener("pointerdown", this.handlePointerDown);
@@ -146,6 +145,7 @@ export class ReadingRailView {
     if (bounds.height <= 0) {
       return;
     }
+    this.track.focus({ preventScroll: true });
     event.preventDefault();
     this.callbacks.onProgressSelect(
       progressFromPointer(event.clientY, bounds.top, bounds.height),

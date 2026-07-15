@@ -7,6 +7,7 @@
   "scripts": {
     "dev": "node esbuild.config.mjs",
     "build": "tsc --noEmit --skipLibCheck && node esbuild.config.mjs production",
+    "deploy": "node scripts/deploy.mjs",
     "test": "vitest run",
     "lint": "eslint src tests scripts *.ts *.mjs --no-error-on-unmatched-pattern",
     "check": "npm run test && npm run lint && npm run build"

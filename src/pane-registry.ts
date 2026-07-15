@@ -46,8 +46,10 @@ function defaultResolveElements(view: MarkdownView): PaneElements | null {
   }
   const scroller = preview.matches(".markdown-preview-view")
     ? preview
-    : preview.closest<HTMLElement>(".markdown-preview-view") ?? preview;
-  return { host, scroller, preview };
+    : preview.querySelector<HTMLElement>(".markdown-preview-view")
+      ?? preview.closest<HTMLElement>(".markdown-preview-view")
+      ?? preview;
+  return { host, scroller, preview: scroller };
 }
 
 export class ReadingPaneRegistry {
@@ -99,6 +101,7 @@ export class ReadingPaneRegistry {
       const controller = this.createController({
         ...elements,
         getHeadings: () => this.getOutlineHeadings(view.file),
+        getLineCount: () => view.getViewData().split(/\r?\n/).length,
       });
       this.controllers.set(leaf, { ...elements, view, controller });
       controller.start();

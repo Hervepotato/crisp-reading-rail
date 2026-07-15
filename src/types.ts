@@ -11,7 +11,9 @@ export interface RenderedHeading {
   target: HTMLElement;
 }
 
-export interface OutlineEntry extends OutlineHeading, RenderedHeading {
+export interface OutlineEntry extends OutlineHeading {
+  documentY: number;
   progress: number;
   labelY: number;
+  target: HTMLElement | null;
 }
