@@ -18,6 +18,12 @@ const LABEL_HEIGHT = 20;
 const LABEL_GAP = 4;
 const HEADING_ACTIVATION_OFFSET = 80;
 const STRUCTURE_REFRESH_DELAY = 80;
+const NAVIGATION_MIN_DURATION = 260;
+const NAVIGATION_MAX_DURATION = 900;
+const NAVIGATION_MS_PER_PIXEL = 0.08;
+const NAVIGATION_SETTLE_TOLERANCE = 0.5;
+const NAVIGATION_STABLE_FRAMES = 2;
+const NAVIGATION_MAX_FINAL_FRAMES = 30;
 
 interface ResizeObserverHandle {
   observe(target: Element, options?: ResizeObserverOptions): void;
@@ -27,6 +33,16 @@ interface ResizeObserverHandle {
 interface MutationObserverHandle {
   observe(target: Node, options?: MutationObserverInit): void;
   disconnect(): void;
+}
+
+interface ScrollNavigation {
+  resolveTop(): number;
+  startTop: number;
+  startedAt: number | null;
+  duration: number;
+  lastTarget: number | null;
+  stableFrames: number;
+  finalFrames: number;
 }
 
 export interface RailControllerEnvironment {
@@ -99,6 +115,8 @@ export class ReadingRailController {
   private mutationObserver: MutationObserverHandle | null = null;
   private entries: OutlineEntry[] = [];
   private frameId: number | null = null;
+  private navigationFrameId: number | null = null;
+  private navigation: ScrollNavigation | null = null;
   private refreshTimer: number | null = null;
   private pendingHeadingLine: number | null = null;
   private needsMeasurement = false;
@@ -128,6 +146,9 @@ export class ReadingRailController {
       onProgressSelect: (progress) => this.navigateToProgress(progress),
     }, this.appearance);
     this.scroller.addEventListener("scroll", this.handleScroll, { passive: true });
+    this.scroller.addEventListener("wheel", this.handleManualNavigation, { passive: true });
+    this.scroller.addEventListener("touchstart", this.handleManualNavigation, { passive: true });
+    this.scroller.addEventListener("pointerdown", this.handleManualNavigation, { passive: true });
 
     this.resizeObserver = this.environment.createResizeObserver(() => {
       this.scheduleFrame(true);
@@ -189,10 +210,14 @@ export class ReadingRailController {
     }
     this.destroyed = true;
     this.scroller.removeEventListener("scroll", this.handleScroll);
+    this.scroller.removeEventListener("wheel", this.handleManualNavigation);
+    this.scroller.removeEventListener("touchstart", this.handleManualNavigation);
+    this.scroller.removeEventListener("pointerdown", this.handleManualNavigation);
     if (this.frameId !== null) {
       this.environment.cancelAnimationFrame(this.frameId);
       this.frameId = null;
     }
+    this.cancelNavigation();
     if (this.refreshTimer !== null) {
       this.environment.clearTimeout(this.refreshTimer);
       this.refreshTimer = null;
@@ -209,6 +234,11 @@ export class ReadingRailController {
 
   private readonly handleScroll = (): void => {
     this.scheduleFrame(false);
+  };
+
+  private readonly handleManualNavigation = (): void => {
+    this.pendingHeadingLine = null;
+    this.cancelNavigation();
   };
 
   private scheduleFrame(needsMeasurement: boolean): void {
@@ -261,18 +291,18 @@ export class ReadingRailController {
   }
 
   private navigateToHeading(entry: OutlineEntry): void {
-    if (entry.target?.isConnected) {
-      this.pendingHeadingLine = null;
-      this.scrollToTop(this.getRenderedHeadingTop(entry.target));
-      return;
-    }
-    this.pendingHeadingLine = entry.sourceLine;
-    this.scrollTo(clamp01(entry.progress));
+    const fallbackProgress = clamp01(entry.progress);
+    this.pendingHeadingLine = entry.target?.isConnected ? null : entry.sourceLine;
+    this.startNavigation(() => this.getHeadingNavigationTop(
+      entry.sourceLine,
+      fallbackProgress,
+    ));
   }
 
   private navigateToProgress(progress: number): void {
     this.pendingHeadingLine = null;
-    this.scrollTo(clamp01(progress));
+    const safeProgress = clamp01(progress);
+    this.startNavigation(() => this.getProgressTop(safeProgress));
   }
 
   private finishPendingHeadingNavigation(): void {
@@ -287,7 +317,12 @@ export class ReadingRailController {
       return;
     }
     this.pendingHeadingLine = null;
-    this.scrollToTop(this.getRenderedHeadingTop(entry.target));
+    if (!this.navigation) {
+      this.startNavigation(() => this.getHeadingNavigationTop(
+        entry.sourceLine,
+        clamp01(entry.progress),
+      ));
+    }
   }
 
   private getRenderedHeadingTop(target: HTMLElement): number {
@@ -296,17 +331,94 @@ export class ReadingRailController {
       + this.scroller.scrollTop;
   }
 
-  private scrollTo(progress: number): void {
+  private getProgressTop(progress: number): number {
     const maxScroll = Math.max(0, this.scroller.scrollHeight - this.scroller.clientHeight);
-    this.scrollToTop(progress * maxScroll);
+    return progress * maxScroll;
   }
 
-  private scrollToTop(top: number): void {
+  private getHeadingNavigationTop(sourceLine: number, fallbackProgress: number): number {
+    const current = this.entries.find((entry) => entry.sourceLine === sourceLine);
+    if (current?.target?.isConnected) {
+      return this.getRenderedHeadingTop(current.target);
+    }
+    return this.getProgressTop(fallbackProgress);
+  }
+
+  private startNavigation(resolveTop: () => number): void {
+    this.cancelNavigation();
+    const startTop = this.scroller.scrollTop;
+    const target = this.resolveNavigationTop(resolveTop);
+    if (this.environment.reducedMotion()) {
+      this.scroller.scrollTo({ top: target, behavior: "auto" });
+      return;
+    }
+    this.navigation = {
+      resolveTop,
+      startTop,
+      startedAt: null,
+      duration: Math.min(
+        NAVIGATION_MAX_DURATION,
+        Math.max(NAVIGATION_MIN_DURATION, Math.abs(target - startTop) * NAVIGATION_MS_PER_PIXEL),
+      ),
+      lastTarget: null,
+      stableFrames: 0,
+      finalFrames: 0,
+    };
+    this.navigationFrameId = this.environment.requestAnimationFrame(this.animateNavigation);
+  }
+
+  private readonly animateNavigation = (timestamp: number): void => {
+    this.navigationFrameId = null;
+    const navigation = this.navigation;
+    if (!navigation || this.destroyed) {
+      return;
+    }
+    navigation.startedAt ??= timestamp;
+    const elapsed = Math.max(0, timestamp - navigation.startedAt);
+    const progress = Math.min(1, elapsed / navigation.duration);
+    const easedProgress = progress < 0.5
+      ? 4 * progress * progress * progress
+      : 1 - Math.pow(-2 * progress + 2, 3) / 2;
+    const target = this.resolveNavigationTop(navigation.resolveTop);
+    const top = progress < 1
+      ? navigation.startTop + (target - navigation.startTop) * easedProgress
+      : target;
+    this.scroller.scrollTo({ top, behavior: "auto" });
+
+    if (progress < 1) {
+      this.navigationFrameId = this.environment.requestAnimationFrame(this.animateNavigation);
+      return;
+    }
+
+    navigation.finalFrames += 1;
+    const targetStable = navigation.lastTarget !== null
+      && Math.abs(target - navigation.lastTarget) <= NAVIGATION_SETTLE_TOLERANCE;
+    const positionSettled = Math.abs(this.scroller.scrollTop - target)
+      <= NAVIGATION_SETTLE_TOLERANCE;
+    navigation.stableFrames = targetStable && positionSettled
+      ? navigation.stableFrames + 1
+      : 0;
+    navigation.lastTarget = target;
+    if (
+      navigation.stableFrames >= NAVIGATION_STABLE_FRAMES
+      || navigation.finalFrames >= NAVIGATION_MAX_FINAL_FRAMES
+    ) {
+      this.navigation = null;
+      return;
+    }
+    this.navigationFrameId = this.environment.requestAnimationFrame(this.animateNavigation);
+  };
+
+  private resolveNavigationTop(resolveTop: () => number): number {
     const maxScroll = Math.max(0, this.scroller.scrollHeight - this.scroller.clientHeight);
-    const safeTop = Math.min(maxScroll, Math.max(0, top));
-    this.scroller.scrollTo({
-      top: safeTop,
-      behavior: this.environment.reducedMotion() ? "auto" : "smooth",
-    });
+    return Math.min(maxScroll, Math.max(0, resolveTop()));
+  }
+
+  private cancelNavigation(): void {
+    if (this.navigationFrameId !== null) {
+      this.environment.cancelAnimationFrame(this.navigationFrameId);
+      this.navigationFrameId = null;
+    }
+    this.navigation = null;
   }
 }

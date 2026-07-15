@@ -84,11 +84,16 @@ function makeEnvironment() {
     get frameRequests() {
       return frameRequests;
     },
-    flushFrame() {
+    flushFrame(timestamp = 0) {
       const first = frames.entries().next().value as [number, FrameRequestCallback] | undefined;
       if (first) {
         frames.delete(first[0]);
-        first[1](0);
+        first[1](timestamp);
+      }
+    },
+    flushFrames(timestamps: readonly number[]) {
+      for (const timestamp of timestamps) {
+        this.flushFrame(timestamp);
       }
     },
     pendingFrameId() {
@@ -196,10 +201,56 @@ describe("ReadingRailController", () => {
     controller.destroy();
   });
 
-  it("keeps long-distance heading navigation smooth", () => {
+  it("settles long-distance progress navigation against changing scroll height", () => {
     const { host, scroller } = makeFixture();
     setMetric(scroller, "scrollHeight", 10000);
     setMetric(scroller, "scrollTop", 5000);
+    const clock = makeEnvironment();
+    const view = makeView();
+    const controller = new ReadingRailController({
+      host,
+      scroller,
+      preview: scroller,
+      getHeadings: () => [],
+      environment: clock.environment,
+      createView: (_host, callbacks) => {
+        view.callbacks = callbacks;
+        return view;
+      },
+    });
+    controller.start();
+    clock.flushFrame();
+    view.callbacks?.onProgressSelect(0.2);
+    setMetric(scroller, "scrollHeight", 12000);
+    clock.flushFrames([0, 1000, 1016, 1032]);
+
+    expect(scroller.scrollTop).toBe(2240);
+    const progressScrollCalls = (
+      vi.mocked(scroller.scrollTo).mock.calls as unknown
+    ) as Array<[ScrollToOptions]>;
+    expect(progressScrollCalls.every(([options]) => options.behavior === "auto")).toBe(true);
+    controller.destroy();
+  });
+
+  it("tracks a rendered heading whose document position shifts during navigation", () => {
+    const { host, scroller } = makeFixture();
+    setMetric(scroller, "scrollHeight", 12000);
+    setMetric(scroller, "scrollTop", 1000);
+    let headingDocumentY = 9000;
+    const heading = document.createElement("h2");
+    heading.textContent = "First";
+    heading.getBoundingClientRect = () => ({
+      top: headingDocumentY - scroller.scrollTop,
+      left: 0,
+      right: 0,
+      bottom: headingDocumentY - scroller.scrollTop + 20,
+      width: 0,
+      height: 20,
+      x: 0,
+      y: headingDocumentY - scroller.scrollTop,
+      toJSON: () => ({}),
+    });
+    scroller.append(heading);
     const clock = makeEnvironment();
     const view = makeView();
     const controller = new ReadingRailController({
@@ -218,7 +269,14 @@ describe("ReadingRailController", () => {
     clock.flushFrame();
     const firstOutline = vi.mocked(view.setOutline).mock.calls[0][0];
     view.callbacks?.onHeadingSelect(firstOutline[0]);
-    expect(scroller.scrollTo).toHaveBeenLastCalledWith({ top: 0, behavior: "smooth" });
+    headingDocumentY = 8200;
+    clock.flushFrames([0, 1000, 1016, 1032]);
+
+    expect(scroller.scrollTop).toBe(8200);
+    const headingScrollCalls = (
+      vi.mocked(scroller.scrollTo).mock.calls as unknown
+    ) as Array<[ScrollToOptions]>;
+    expect(headingScrollCalls.every(([options]) => options.behavior === "auto")).toBe(true);
     controller.destroy();
   });
 
@@ -243,25 +301,27 @@ describe("ReadingRailController", () => {
 
     const firstOutline = vi.mocked(view.setOutline).mock.calls[0][0];
     view.callbacks?.onHeadingSelect(firstOutline[0]);
-    expect(scroller.scrollTo).toHaveBeenLastCalledWith({ top: 500, behavior: "smooth" });
+    clock.flushFrames([0, 1000, 1016, 1032]);
+    expect(scroller.scrollTop).toBe(500);
 
     const heading = document.createElement("h2");
     heading.textContent = "First";
     heading.getBoundingClientRect = () => ({
-      top: 100,
+      top: 600 - scroller.scrollTop,
       left: 0,
       right: 0,
-      bottom: 120,
+      bottom: 620 - scroller.scrollTop,
       width: 0,
       height: 20,
       x: 0,
-      y: 100,
+      y: 600 - scroller.scrollTop,
       toJSON: () => ({}),
     });
     scroller.append(heading);
     setMetric(scroller, "scrollTop", 500);
     controller.refresh();
-    expect(scroller.scrollTo).toHaveBeenLastCalledWith({ top: 600, behavior: "smooth" });
+    clock.flushFrames([2000, 3000, 3016, 3032]);
+    expect(scroller.scrollTop).toBe(600);
     controller.destroy();
   });
 
