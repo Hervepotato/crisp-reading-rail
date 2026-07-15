@@ -14,6 +14,48 @@ function makeController() {
 }
 
 describe("ReadingPaneRegistry", () => {
+  it("mounts a controller only for the selected leaf in each tab group", () => {
+    const views = ["one.md", "two.md"].map((path) => ({
+      file: { path },
+      getMode: () => "preview" as const,
+    }));
+    const leaves = views.map((view) => ({ view })) as unknown as WorkspaceLeaf[];
+    const tabGroup = {
+      type: "tabs",
+      children: leaves,
+      currentTab: 0,
+    };
+    for (const leaf of leaves) {
+      Object.assign(leaf, { parent: tabGroup });
+    }
+    const controllers = [makeController(), makeController()];
+    const factory = vi.fn()
+      .mockReturnValueOnce(controllers[0])
+      .mockReturnValueOnce(controllers[1]);
+    const host = document.createElement("div");
+    const registry = new ReadingPaneRegistry(
+      {
+        workspace: { iterateAllLeaves: (callback) => leaves.forEach(callback) },
+        metadataCache: { getFileCache: () => ({ headings: [] }) },
+      },
+      {
+        isMarkdownView: (view: View): view is MarkdownView => "getMode" in view,
+        resolveElements: () => ({ host, scroller: host, preview: host }),
+        createController: factory,
+      },
+    );
+
+    registry.reconcile();
+    expect(factory).toHaveBeenCalledTimes(1);
+    expect(controllers[0].start).toHaveBeenCalledTimes(1);
+
+    tabGroup.currentTab = 1;
+    registry.reconcile();
+    expect(controllers[0].destroy).toHaveBeenCalledTimes(1);
+    expect(controllers[1].start).toHaveBeenCalledTimes(1);
+    registry.destroy();
+  });
+
   it("finds the scrollable preview inside Obsidian's reading-view wrapper", () => {
     const host = document.createElement("div");
     const wrapper = document.createElement("div");

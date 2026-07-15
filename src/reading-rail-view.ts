@@ -69,10 +69,16 @@ export class ReadingRailView {
   private readonly environment: RailViewEnvironment;
   private ticks: HTMLElement[] = [];
   private tickYPositions: number[] = [];
+  private tickWaveOffsets: number[] = [];
   private headingTicks: HTMLElement[] = [];
   private headingTickYPositions: number[] = [];
+  private headingTickWaveOffsets: number[] = [];
   private labels: HTMLButtonElement[] = [];
   private entries: OutlineEntry[] = [];
+  private activeHeadingIndex = -1;
+  private lastReadTickIndex = Number.MIN_SAFE_INTEGER;
+  private lastProgressText = "";
+  private lastProgressPercentage = -1;
   private currentProgress = 0;
   private trackHeight = 1;
   private targetPosition = 0;
@@ -179,7 +185,30 @@ export class ReadingRailView {
   setOutline(entries: readonly OutlineEntry[], tickCount: number): void {
     const document = this.root.ownerDocument;
     const count = Math.max(0, Math.floor(tickCount));
-    this.entries = entries.map((entry) => ({ ...entry }));
+    const nextEntries = entries.map((entry) => ({ ...entry }));
+    const canReuseNodes = count === this.ticks.length
+      && nextEntries.length === this.entries.length
+      && nextEntries.every((entry, index) => {
+        const previous = this.entries[index];
+        return previous?.sourceLine === entry.sourceLine
+          && previous.text === entry.text
+          && previous.level === entry.level;
+      });
+    this.entries = nextEntries;
+
+    if (canReuseNodes) {
+      this.headingTicks.forEach((tick, index) => {
+        const progress = clamp01(this.entries[index]?.progress ?? 0).toString();
+        if (tick.style.getPropertyValue("--crisp-reading-heading-progress") !== progress) {
+          tick.style.setProperty("--crisp-reading-heading-progress", progress);
+        }
+      });
+      this.measureLayout();
+      this.updateReadTicks();
+      this.renderPosition();
+      return;
+    }
+
     this.ticks = Array.from({ length: count }, (_, index) => {
       const tick = document.createElement("span");
       tick.className = "crisp-reading-rail__tick";
@@ -189,6 +218,7 @@ export class ReadingRailView {
       return tick;
     });
     this.ticksContainer.replaceChildren(...this.ticks);
+    this.tickWaveOffsets = Array.from({ length: this.ticks.length }, () => Number.NaN);
 
     this.headingTicks = this.entries.map((entry) => {
       const tick = document.createElement("span");
@@ -202,17 +232,28 @@ export class ReadingRailView {
       return tick;
     });
     this.headingTicksContainer.replaceChildren(...this.headingTicks);
+    this.headingTickWaveOffsets = Array.from(
+      { length: this.headingTicks.length },
+      () => Number.NaN,
+    );
 
-    this.labels = this.entries.map((entry) => {
+    this.labels = this.entries.map((entry, index) => {
       const label = document.createElement("button");
       label.type = "button";
       label.className = "crisp-reading-rail__label";
       label.textContent = entry.text;
       label.style.setProperty("--crisp-reading-level", String(entry.level - 2));
-      label.addEventListener("click", () => this.callbacks.onHeadingSelect(entry));
+      label.addEventListener("click", () => {
+        const currentEntry = this.entries[index];
+        if (currentEntry) {
+          this.callbacks.onHeadingSelect(currentEntry);
+        }
+      });
       return label;
     });
     this.labelsContainer.replaceChildren(...this.labels);
+    this.activeHeadingIndex = -1;
+    this.lastReadTickIndex = Number.MIN_SAFE_INTEGER;
     this.measureLayout();
     this.updateReadTicks();
     this.renderPosition();
@@ -222,9 +263,16 @@ export class ReadingRailView {
     this.currentProgress = clamp01(progress);
     this.targetPosition = this.currentProgress * this.trackHeight;
     const percentage = Math.round(this.currentProgress * 100);
-    this.progressLabel.textContent = this.currentProgress.toFixed(2);
-    this.track.setAttribute("aria-valuenow", percentage.toString());
-    this.track.setAttribute("aria-valuetext", this.currentProgress.toFixed(2));
+    const progressText = this.currentProgress.toFixed(2);
+    if (progressText !== this.lastProgressText) {
+      this.progressLabel.textContent = progressText;
+      this.track.setAttribute("aria-valuetext", progressText);
+      this.lastProgressText = progressText;
+    }
+    if (percentage !== this.lastProgressPercentage) {
+      this.track.setAttribute("aria-valuenow", percentage.toString());
+      this.lastProgressPercentage = percentage;
+    }
     this.updateReadTicks();
 
     if (!this.visible) {
@@ -238,16 +286,16 @@ export class ReadingRailView {
   }
 
   setActiveHeading(index: number): void {
-    this.labels.forEach((label, labelIndex) => {
-      if (labelIndex === index) {
-        label.setAttribute("aria-current", "location");
-      } else {
-        label.removeAttribute("aria-current");
-      }
-    });
-    this.headingTicks.forEach((tick, tickIndex) => {
-      tick.classList.toggle("is-active", tickIndex === index);
-    });
+    const nextIndex = index >= 0 && index < this.entries.length ? index : -1;
+    if (nextIndex === this.activeHeadingIndex) {
+      return;
+    }
+    const previousIndex = this.activeHeadingIndex;
+    this.labels[previousIndex]?.removeAttribute("aria-current");
+    this.headingTicks[previousIndex]?.classList.remove("is-active");
+    this.labels[nextIndex]?.setAttribute("aria-current", "location");
+    this.headingTicks[nextIndex]?.classList.add("is-active");
+    this.activeHeadingIndex = nextIndex;
   }
 
   setExpanded(expanded: boolean): void {
@@ -310,7 +358,9 @@ export class ReadingRailView {
     this.root.removeEventListener("focusout", this.handleFocusOut);
     this.root.remove();
     this.ticks = [];
+    this.tickWaveOffsets = [];
     this.headingTicks = [];
+    this.headingTickWaveOffsets = [];
     this.labels = [];
     this.entries = [];
   }
@@ -402,15 +452,16 @@ export class ReadingRailView {
   }
 
   private renderPosition(): void {
-    const normalizedPosition = this.trackHeight <= 0
-      ? this.currentProgress
-      : clamp01(this.displayedPosition / this.trackHeight);
-    this.root.style.setProperty(
-      "--crisp-reading-progress",
-      normalizedPosition.toString(),
+    const translateY = `translateY(${this.displayedPosition}px)`;
+    this.active.style.transform = `${translateY} translateY(-50%)`;
+    this.orb.style.transform = `${translateY} translate(50%, -50%)`;
+    this.progressLabel.style.transform = `${translateY} translateY(-50%)`;
+    this.applyWave(this.ticks, this.tickYPositions, this.tickWaveOffsets);
+    this.applyWave(
+      this.headingTicks,
+      this.headingTickYPositions,
+      this.headingTickWaveOffsets,
     );
-    this.applyWave(this.ticks, this.tickYPositions);
-    this.applyWave(this.headingTicks, this.headingTickYPositions);
     if (
       this.orbMedia
       && this.resolvedOrbStyle !== "default"
@@ -422,13 +473,22 @@ export class ReadingRailView {
     }
   }
 
-  private applyWave(elements: readonly HTMLElement[], positions: readonly number[]): void {
+  private applyWave(
+    elements: readonly HTMLElement[],
+    positions: readonly number[],
+    previousOffsets: number[],
+  ): void {
     elements.forEach((element, index) => {
       const itemY = positions[index] ?? 0;
-      const offset = isWithinWaveRadius(this.displayedPosition, itemY)
+      const rawOffset = isWithinWaveRadius(this.displayedPosition, itemY)
         ? -gaussianWaveOffset(this.displayedPosition, itemY)
         : 0;
+      const offset = Math.round(rawOffset * 100) / 100;
+      if (Object.is(previousOffsets[index], offset)) {
+        return;
+      }
       element.style.setProperty("--crisp-reading-wave-x", `${offset}px`);
+      previousOffsets[index] = offset;
     });
   }
 
@@ -579,9 +639,27 @@ export class ReadingRailView {
   };
 
   private updateReadTicks(): void {
-    for (const tick of this.ticks) {
-      const progress = Number(tick.dataset.progress ?? 0);
-      tick.classList.toggle("is-read", progress <= this.currentProgress);
+    if (this.ticks.length === 0) {
+      this.lastReadTickIndex = -1;
+      return;
     }
+    const nextIndex = Math.min(
+      this.ticks.length - 1,
+      Math.floor(this.currentProgress * (this.ticks.length - 1) + Number.EPSILON),
+    );
+    if (this.lastReadTickIndex === Number.MIN_SAFE_INTEGER) {
+      this.ticks.forEach((tick, index) => {
+        tick.classList.toggle("is-read", index <= nextIndex);
+      });
+    } else if (nextIndex > this.lastReadTickIndex) {
+      for (let index = this.lastReadTickIndex + 1; index <= nextIndex; index += 1) {
+        this.ticks[index]?.classList.add("is-read");
+      }
+    } else if (nextIndex < this.lastReadTickIndex) {
+      for (let index = nextIndex + 1; index <= this.lastReadTickIndex; index += 1) {
+        this.ticks[index]?.classList.remove("is-read");
+      }
+    }
+    this.lastReadTickIndex = nextIndex;
   }
 }
