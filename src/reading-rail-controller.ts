@@ -6,7 +6,10 @@ import {
 } from "./outline-model";
 import { calculateProgress, calculateTickCount, clamp01 } from "./progress";
 import { ReadingRailView } from "./reading-rail-view";
-import type { RailViewCallbacks } from "./reading-rail-view";
+import type {
+  RailAppearanceProvider,
+  RailViewCallbacks,
+} from "./reading-rail-view";
 import type { OutlineEntry, OutlineHeading } from "./types";
 
 const MIN_PANE_WIDTH = 680;
@@ -42,6 +45,7 @@ export interface RailView {
   setActiveHeading(index: number): void;
   setExpanded(expanded: boolean): void;
   setVisible(visible: boolean): void;
+  refreshAppearance(): void;
   destroy(): void;
 }
 
@@ -51,8 +55,13 @@ export interface ReadingRailControllerOptions {
   preview: HTMLElement;
   getHeadings(): readonly OutlineHeading[];
   getLineCount?(): number;
+  appearance?: RailAppearanceProvider;
   environment?: RailControllerEnvironment;
-  createView?(host: HTMLElement, callbacks: RailViewCallbacks): RailView;
+  createView?(
+    host: HTMLElement,
+    callbacks: RailViewCallbacks,
+    appearance?: RailAppearanceProvider,
+  ): RailView;
 }
 
 function createDefaultEnvironment(host: HTMLElement): RailControllerEnvironment {
@@ -79,7 +88,12 @@ export class ReadingRailController {
   private readonly getHeadings: () => readonly OutlineHeading[];
   private readonly getLineCount: () => number;
   private readonly environment: RailControllerEnvironment;
-  private readonly createView: (host: HTMLElement, callbacks: RailViewCallbacks) => RailView;
+  private readonly appearance?: RailAppearanceProvider;
+  private readonly createView: (
+    host: HTMLElement,
+    callbacks: RailViewCallbacks,
+    appearance?: RailAppearanceProvider,
+  ) => RailView;
   private view: RailView | null = null;
   private resizeObserver: ResizeObserverHandle | null = null;
   private mutationObserver: MutationObserverHandle | null = null;
@@ -97,9 +111,10 @@ export class ReadingRailController {
     this.preview = options.preview;
     this.getHeadings = options.getHeadings;
     this.getLineCount = options.getLineCount ?? (() => 0);
+    this.appearance = options.appearance;
     this.environment = options.environment ?? createDefaultEnvironment(options.host);
-    this.createView = options.createView ?? ((host, callbacks) => (
-      ReadingRailView.mount(host, callbacks)
+    this.createView = options.createView ?? ((host, callbacks, appearance) => (
+      ReadingRailView.mount(host, callbacks, { appearance })
     ));
   }
 
@@ -111,7 +126,7 @@ export class ReadingRailController {
     this.view = this.createView(this.host, {
       onHeadingSelect: (entry) => this.navigateToHeading(entry),
       onProgressSelect: (progress) => this.navigateToProgress(progress),
-    });
+    }, this.appearance);
     this.scroller.addEventListener("scroll", this.handleScroll, { passive: true });
 
     this.resizeObserver = this.environment.createResizeObserver(() => {
@@ -159,6 +174,13 @@ export class ReadingRailController {
     this.view.setVisible(visible);
     this.updateScrollState();
     this.finishPendingHeadingNavigation();
+  }
+
+  refreshAppearance(): void {
+    if (!this.started || this.destroyed) {
+      return;
+    }
+    this.view?.refreshAppearance();
   }
 
   destroy(): void {

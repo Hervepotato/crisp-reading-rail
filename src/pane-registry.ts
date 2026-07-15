@@ -1,6 +1,7 @@
 import { MarkdownView } from "obsidian";
 import { ReadingRailController } from "./reading-rail-controller";
 import type { ReadingRailControllerOptions } from "./reading-rail-controller";
+import type { RailAppearanceProvider } from "./reading-rail-view";
 import type {
   CachedMetadata,
   MetadataCache,
@@ -13,6 +14,7 @@ import type {
 export interface ControllerLike {
   start(): void;
   refresh(): void;
+  refreshAppearance(): void;
   destroy(): void;
 }
 
@@ -28,6 +30,7 @@ interface PaneElements {
 }
 
 interface RegistryOptions {
+  appearance?: RailAppearanceProvider;
   isMarkdownView?(view: View): view is MarkdownView;
   resolveElements?(view: MarkdownView): PaneElements | null;
   createController?(options: ReadingRailControllerOptions): ControllerLike;
@@ -54,6 +57,7 @@ function defaultResolveElements(view: MarkdownView): PaneElements | null {
 
 export class ReadingPaneRegistry {
   private readonly context: RegistryContext;
+  private readonly appearance?: RailAppearanceProvider;
   private readonly isMarkdownView: (view: View) => view is MarkdownView;
   private readonly resolveElements: (view: MarkdownView) => PaneElements | null;
   private readonly createController: (options: ReadingRailControllerOptions) => ControllerLike;
@@ -62,6 +66,7 @@ export class ReadingPaneRegistry {
 
   constructor(context: RegistryContext, options: RegistryOptions = {}) {
     this.context = context;
+    this.appearance = options.appearance;
     this.isMarkdownView = options.isMarkdownView ?? (
       (view: View): view is MarkdownView => view instanceof MarkdownView
     );
@@ -100,6 +105,7 @@ export class ReadingPaneRegistry {
 
       const controller = this.createController({
         ...elements,
+        appearance: this.appearance,
         getHeadings: () => this.getOutlineHeadings(view.file),
         getLineCount: () => view.getViewData().split(/\r?\n/).length,
       });
@@ -123,6 +129,15 @@ export class ReadingPaneRegistry {
       if (record.view.file === file || record.view.file?.path === file.path) {
         record.controller.refresh();
       }
+    }
+  }
+
+  refreshAppearance(): void {
+    if (this.destroyed) {
+      return;
+    }
+    for (const record of this.controllers.values()) {
+      record.controller.refreshAppearance();
     }
   }
 

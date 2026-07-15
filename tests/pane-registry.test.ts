@@ -8,6 +8,7 @@ function makeController() {
   return {
     start: vi.fn(),
     refresh: vi.fn(),
+    refreshAppearance: vi.fn(),
     destroy: vi.fn(),
   };
 }
@@ -107,5 +108,47 @@ describe("ReadingPaneRegistry", () => {
     expect(factory).toHaveBeenCalledTimes(2);
     registry.destroy();
     expect(replacement.destroy).toHaveBeenCalledTimes(1);
+  });
+
+  it("refreshes appearance in every live pane without rebuilding controllers", () => {
+    const views = ["one.md", "two.md"].map((path) => ({
+      file: { path },
+      getMode: () => "preview" as const,
+    }));
+    const leaves = views.map((view) => ({ view })) as unknown as WorkspaceLeaf[];
+    const controllers = [makeController(), makeController()];
+    const appearance = {
+      getOrbStyle: () => "gear" as const,
+      getAssetUrl: (path: string) => `app://reading/${path}`,
+    };
+    const factory = vi.fn()
+      .mockReturnValueOnce(controllers[0])
+      .mockReturnValueOnce(controllers[1]);
+    const registry = new ReadingPaneRegistry(
+      {
+        workspace: { iterateAllLeaves: (callback) => leaves.forEach(callback) },
+        metadataCache: { getFileCache: () => ({ headings: [] }) },
+      },
+      {
+        appearance,
+        isMarkdownView: (view: View): view is MarkdownView => "getMode" in view,
+        resolveElements: (view) => ({
+          host: (view as unknown as { host: HTMLElement }).host
+            ?? document.createElement("div"),
+          scroller: document.createElement("div"),
+          preview: document.createElement("div"),
+        }),
+        createController: factory,
+      },
+    );
+
+    registry.reconcile();
+    expect(factory).toHaveBeenCalledTimes(2);
+    expect(factory.mock.calls[0][0]).toEqual(expect.objectContaining({ appearance }));
+
+    registry.refreshAppearance();
+    expect(controllers[0].refreshAppearance).toHaveBeenCalledTimes(1);
+    expect(controllers[1].refreshAppearance).toHaveBeenCalledTimes(1);
+    expect(factory).toHaveBeenCalledTimes(2);
   });
 });

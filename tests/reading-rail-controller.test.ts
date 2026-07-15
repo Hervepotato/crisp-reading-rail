@@ -110,6 +110,7 @@ function makeView(): RailView & {
     setVisible(visible) {
       this.visible = visible;
     },
+    refreshAppearance: vi.fn(),
     destroy: vi.fn(),
   };
 }
@@ -260,5 +261,28 @@ describe("ReadingRailController", () => {
     controller.refresh();
     expect(scroller.scrollTo).toHaveBeenLastCalledWith({ top: 600, behavior: "smooth" });
     controller.destroy();
+  });
+
+  it("forwards appearance changes without rebuilding or scrolling", () => {
+    const { host, scroller } = makeFixture();
+    const clock = makeEnvironment();
+    const view = makeView();
+    const controller = new ReadingRailController({
+      host,
+      scroller,
+      preview: scroller,
+      getHeadings: () => [],
+      environment: clock.environment,
+      createView: () => view,
+    });
+    controller.start();
+    clock.flushFrame();
+    vi.mocked(scroller.scrollTo).mockClear();
+
+    controller.refreshAppearance();
+
+    expect(view.refreshAppearance).toHaveBeenCalledTimes(1);
+    expect(scroller.scrollTo).not.toHaveBeenCalled();
+    expect(view.destroy).not.toHaveBeenCalled();
   });
 });

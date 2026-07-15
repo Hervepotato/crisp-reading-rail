@@ -1,17 +1,31 @@
-import { Plugin } from "obsidian";
+import { Plugin, PluginSettingTab, Setting } from "obsidian";
+import { ORB_STYLE_OPTIONS, normalizeOrbStyle } from "./orb-styles";
 import { ReadingPaneRegistry } from "./pane-registry";
+import {
+  DEFAULT_SETTINGS,
+  normalizeSettings,
+  type CrispReadingRailSettings,
+} from "./settings";
 
 export default class CrispReadingRailPlugin extends Plugin {
+  settings: CrispReadingRailSettings = { ...DEFAULT_SETTINGS };
   private registry: ReadingPaneRegistry | null = null;
   private reconcileFrame: number | null = null;
   private unloaded = false;
 
-  onload(): void {
+  async onload(): Promise<void> {
+    this.settings = normalizeSettings(await this.loadData());
+    this.addSettingTab(new CrispReadingRailSettingTab(this));
     this.app.workspace.onLayoutReady(() => {
       if (this.unloaded) {
         return;
       }
-      this.registry = new ReadingPaneRegistry(this.app);
+      this.registry = new ReadingPaneRegistry(this.app, {
+        appearance: {
+          getOrbStyle: () => this.settings.orbStyle,
+          getAssetUrl: (path) => this.getAssetUrl(path),
+        },
+      });
       this.registry.reconcile();
 
       const scheduleReconcile = (): void => this.scheduleReconcile();
@@ -37,6 +51,11 @@ export default class CrispReadingRailPlugin extends Plugin {
     this.registry = null;
   }
 
+  async saveSettings(): Promise<void> {
+    await this.saveData(this.settings);
+    this.registry?.refreshAppearance();
+  }
+
   private scheduleReconcile(): void {
     if (this.unloaded || this.reconcileFrame !== null) {
       return;
@@ -51,5 +70,40 @@ export default class CrispReadingRailPlugin extends Plugin {
         this.registry?.reconcile();
       }
     });
+  }
+
+  private getAssetUrl(path: string): string {
+    const pluginDirectory = this.manifest.dir
+      ?? `.obsidian/plugins/${this.manifest.id}`;
+    return this.app.vault.adapter.getResourcePath(`${pluginDirectory}/${path}`);
+  }
+}
+
+class CrispReadingRailSettingTab extends PluginSettingTab {
+  private readonly plugin: CrispReadingRailPlugin;
+
+  constructor(plugin: CrispReadingRailPlugin) {
+    super(plugin.app, plugin);
+    this.plugin = plugin;
+  }
+
+  display(): void {
+    const { containerEl } = this;
+    containerEl.empty();
+
+    new Setting(containerEl)
+      .setName("Orb style")
+      .setDesc("Choose the reading-position orb appearance.")
+      .addDropdown((dropdown) => {
+        for (const option of ORB_STYLE_OPTIONS) {
+          dropdown.addOption(option.value, option.label);
+        }
+        dropdown
+          .setValue(this.plugin.settings.orbStyle)
+          .onChange(async (value) => {
+            this.plugin.settings.orbStyle = normalizeOrbStyle(value);
+            await this.plugin.saveSettings();
+          });
+      });
   }
 }
