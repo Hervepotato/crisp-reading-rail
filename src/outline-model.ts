@@ -60,7 +60,7 @@ export function resolveLabelPositions(
     positions[index] = Math.max(positions[index], positions[index - 1] + separation);
   }
 
-  if (positions.at(-1)! > maxY) {
+  if (positions[positions.length - 1] > maxY) {
     positions[positions.length - 1] = maxY;
     for (let index = positions.length - 2; index >= 0; index -= 1) {
       positions[index] = Math.min(positions[index], positions[index + 1] - separation);
