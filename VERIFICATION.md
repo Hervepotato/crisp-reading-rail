@@ -1,8 +1,36 @@
-# Crisp Reading Rail v0.1.0 verification
+# Crisp Reading Rail verification
+
+## v0.2.0
 
 Verified on 2026-07-15 with Obsidian Desktop 1.12.7 in the ALL vault.
 
-## Automated gate
+### Automated gate
+
+`npm run check` passed with 6 test files and 25 tests. ESLint, TypeScript, and the production esbuild bundle all passed. The tests include separate semantic heading ticks, H2-H4 level metadata, 96px proximity activation, an exact 3000ms collapse delay, re-entry cancellation, clickable labels during the grace period, and listener/timer cleanup.
+
+### Live Obsidian acceptance
+
+The 0.2.0 runtime was deployed and reloaded by disabling and re-enabling only Crisp Reading Rail. Source and runtime `main.js`, `styles.css`, and `manifest.json` matched byte for byte.
+
+Developer Tools inspection of the visible long-note rail reported:
+
+- 119 fine progress ticks and 8 semantic heading ticks;
+- H2 marks at `16px × 2px` and H3 marks at `14px × 2px` (H4 uses the tested 12px default);
+- fine-tick counts of `3, 38, 18, 16, 13, 12, 15` between successive heading marks, confirming content-proportional section spacing;
+- label `border: none` and a transparent background;
+- the active label resolved to the current Obsidian `--interactive-accent` color;
+- a synthetic pointer position 80px left of the rail expanded labels;
+- labels remained expanded at 2800ms and were collapsed after 3200ms;
+- clicking the final label during the grace period changed the Reading-view scroll position from `0` to `19864.5` and the rail value to `0.98`;
+- no uncaught, type, reference, or `plugin:crisp-reading-rail` console error.
+
+The final Obsidian state was restored to the top of the note with Developer Tools closed and the v0.2.0 plugin enabled.
+
+## v0.1.0
+
+Verified on 2026-07-15 with Obsidian Desktop 1.12.7 in the ALL vault.
+
+### Automated gate
 
 The final gate covers progress geometry, outline matching and collision handling, Obsidian virtualized headings, accessible DOM structure, local pointer and keyboard behavior, reduced motion, long-distance navigation, controller cleanup, pane reconciliation, real Reading-view wrapper resolution, and deployment packaging.
 
@@ -19,7 +47,7 @@ runtime/source SHA-256 comparison
 
 Result: all commands exited successfully. Vitest reported 6 test files and 22 passing tests. ESLint, TypeScript, esbuild, JavaScript syntax, and manifest assertions passed.
 
-## Obsidian acceptance
+### Obsidian acceptance
 
 | Check | Result | Current evidence |
 | --- | --- | --- |
@@ -34,14 +62,14 @@ Result: all commands exited successfully. Vitest reported 6 test files and 22 pa
 | Reduced motion | Pass | Automated controller test selected `auto` scrolling when reduced motion is requested. CSS removes nonessential transitions under `prefers-reduced-motion: reduce`. |
 | Light and dark themes | Pass | Obsidian theme toggle was exercised; the rail retained contrast through theme variables and the original light state was restored afterward. |
 
-## Screenshots
+### Screenshots
 
 - `verification/collapsed-light.jpeg` — collapsed rail in the light theme.
 - `verification/focus-expanded-full-outline-light.jpeg` — focused rail with the full virtualized outline distributed down the article.
 - `verification/two-pane-independent-light.jpeg` — two Reading panes with independent progress values.
 - `verification/collapsed-dark.jpeg` — collapsed rail while Obsidian reported `theme-dark`.
 
-## Deployment
+### Deployment
 
 Runtime directory:
 
