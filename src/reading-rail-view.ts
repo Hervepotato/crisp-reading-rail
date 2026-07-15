@@ -461,8 +461,10 @@ export class ReadingRailView {
       this.applyOrbStyle("default");
       return;
     }
+    const wrapper = this.root.ownerDocument.createElement("span");
+    wrapper.className = "crisp-reading-rail__orb-media";
     const image = this.root.ownerDocument.createElement("img");
-    image.className = "crisp-reading-rail__orb-media";
+    image.className = "crisp-reading-rail__orb-image";
     image.alt = "";
     image.draggable = false;
     image.src = this.appearance.getAssetUrl(assetPath);
@@ -471,9 +473,10 @@ export class ReadingRailView {
         this.applyOrbStyle("default");
       }
     };
-    this.orb.append(image);
+    wrapper.append(image);
+    this.orb.append(wrapper);
     this.orbImage = image;
-    this.orbMedia = image;
+    this.orbMedia = wrapper;
     this.renderPosition();
   }
 

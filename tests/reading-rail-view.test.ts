@@ -369,6 +369,30 @@ describe("ReadingRailView", () => {
     expect(orb.querySelector("img")).toBeNull();
   });
 
+  it("rotates file-backed orbs through a stable square wrapper", () => {
+    const host = document.createElement("div");
+    const view = ReadingRailView.mount(host, {
+      onHeadingSelect: vi.fn(),
+      onProgressSelect: vi.fn(),
+    }, {
+      appearance: {
+        getOrbStyle: () => "fear",
+        getAssetUrl: (path) => `app://reading-rail/${path}`,
+      },
+    });
+    const track = host.querySelector<HTMLElement>(".crisp-reading-rail__track")!;
+    setMetric(track, "clientHeight", 400);
+    view.setOutline([], 12);
+    view.setProgress(0.5);
+
+    const media = host.querySelector<HTMLElement>(".crisp-reading-rail__orb-media")!;
+    const image = host.querySelector<HTMLImageElement>(".crisp-reading-rail__orb-image")!;
+    expect(media.tagName).toBe("SPAN");
+    expect(media.contains(image)).toBe(true);
+    expect(media.style.transform).toMatch(/^rotate\(.+deg\)$/);
+    expect(image.style.transform).toBe("");
+  });
+
   it("follows the companion DOM style and disconnects owned observers and frames", () => {
     document.body.innerHTML =
       '<div class="crisp-fe-orb" data-orb-style="gear"></div>';
