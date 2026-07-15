@@ -1,4 +1,4 @@
-import { copyFile, mkdir, readFile, stat } from "node:fs/promises";
+import { copyFile, cp, mkdir, readFile, rm, stat } from "node:fs/promises";
 import console from "node:console";
 import process from "node:process";
 import { dirname, resolve } from "node:path";
@@ -37,12 +37,16 @@ async function main() {
   for (const artifact of artifacts) {
     await stat(resolve(projectRoot, artifact));
   }
+  await requireDirectory(resolve(projectRoot, "assets"), "Plugin assets directory");
 
   const destination = resolve(vault, ".obsidian", "plugins", manifest.id);
   await mkdir(destination, { recursive: true });
   await Promise.all(artifacts.map((artifact) => (
     copyFile(resolve(projectRoot, artifact), resolve(destination, artifact))
   )));
+  const destinationAssets = resolve(destination, "assets");
+  await rm(destinationAssets, { force: true, recursive: true });
+  await cp(resolve(projectRoot, "assets"), destinationAssets, { recursive: true });
   console.log(`Deployed ${manifest.name} ${manifest.version} to ${destination}`);
 }
 

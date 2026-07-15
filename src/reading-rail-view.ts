@@ -267,7 +267,6 @@ export class ReadingRailView {
       return;
     }
     this.measureLayout();
-    this.snapToTarget();
   }
 
   refreshAppearance(): void {

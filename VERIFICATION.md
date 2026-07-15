@@ -1,5 +1,36 @@
 # Crisp Reading Rail verification
 
+## v0.3.0
+
+Verified on 2026-07-15 with Obsidian Desktop 1.12.7 in the ALL vault.
+
+### Automated gate
+
+`npm run check` passed with 9 test files and 49 tests. ESLint, TypeScript, production esbuild, `node --check main.js`, manifest assertions, and `git diff --check` all passed.
+
+The new coverage includes spring convergence and frame-delta clamping; Gaussian wave geometry and dynamic-radius reset; first-render/hidden-to-visible snapping; reduced motion; all 22 Orb setting values; all 19 material mappings; deterministic daily random; same-document Crisp File Explorer following and fallback; inline/file-backed media and image-error fallback; character rotation suppression; variable-height/over-constrained label layout; live-pane appearance propagation; observer/frame/timer/listener cleanup; and asset-aware deployment that preserves `data.json`.
+
+### Live Obsidian acceptance
+
+The 0.3.0 runtime was deployed to the ALL vault and loaded by toggling only Crisp Reading Rail. The live plugin exposed **Settings → Crisp Reading Rail → Orb style** with all approved options from Follow Crisp File Explorer through Taiga.
+
+Verified in a long Markdown Reading-view note:
+
+- the progress number rendered as accent-colored text without a surrounding card;
+- the default and file-backed Gear orbs rendered successfully and changed immediately without pane recreation;
+- nearby fine/heading marks bent left around the orb while distant marks remained aligned;
+- H2-H4 labels appeared when approaching the rail, remained pure text overlays, and long labels wrapped without changing article width;
+- clicking an expanded title navigated from `0.47` to `0.50`;
+- after moving away, accessibility inspection still found the labels before the grace period ended and no longer found them after 3200ms;
+- the filtered Developer Console contained no `crisp-reading-rail` message or error (one pre-existing Obsidian measurement warning was unrelated);
+- the temporary Gear test selection persisted correctly, and subsequent user-side Orb changes continued to save live.
+
+Every deployed `main.js`, `manifest.json`, `styles.css`, SVG, and PNG matched the repository source byte for byte. The final first-visible-frame regression fix was then rebuilt, passed the full 49-test gate, and redeployed byte-identically.
+
+### Automated-only acceptance
+
+Random per day, live companion-style mutation, missing-companion fallback, image failure fallback, character-upright behavior, reduced-motion snapping, multiple panes, and narrow/edit/hidden-state cleanup are covered by deterministic automated tests. They were not all exercised manually for every one of the 19 material choices in the final Obsidian session.
+
 ## v0.2.0
 
 Verified on 2026-07-15 with Obsidian Desktop 1.12.7 in the ALL vault.

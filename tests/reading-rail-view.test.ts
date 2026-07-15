@@ -321,6 +321,26 @@ describe("ReadingRailView", () => {
       .getPropertyValue("--crisp-reading-progress")).toBe("0.8");
   });
 
+  it("snaps the first progress update after becoming visible", () => {
+    const clock = makeViewEnvironment();
+    const host = document.createElement("div");
+    const view = ReadingRailView.mount(host, {
+      onHeadingSelect: vi.fn(),
+      onProgressSelect: vi.fn(),
+    }, { environment: clock.environment });
+    const track = host.querySelector<HTMLElement>(".crisp-reading-rail__track")!;
+    setMetric(track, "clientHeight", 400);
+    view.setVisible(false);
+    view.setOutline([], 12);
+    view.setVisible(true);
+
+    view.setProgress(0.6);
+
+    expect(clock.pendingFrames).toBe(0);
+    expect(host.querySelector<HTMLElement>(".crisp-reading-rail")?.style
+      .getPropertyValue("--crisp-reading-progress")).toBe("0.6");
+  });
+
   it("renders inline and file orbs, keeps characters upright, and falls back on image error", () => {
     let style: "soccer" | "character1" = "soccer";
     const host = document.createElement("div");

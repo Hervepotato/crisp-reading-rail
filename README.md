@@ -1,16 +1,23 @@
 # Crisp Reading Rail
 
-Crisp Reading Rail adds a compact reading-progress and heading-navigation rail to the right edge of each eligible Obsidian Markdown Reading view. Its restrained line, ticks, and accent orb are designed to sit alongside the visual language of Crisp File Explorer without occupying Obsidian's native right sidebar.
+Crisp Reading Rail adds a compact reading-progress and heading-navigation rail to the right edge of each eligible Obsidian Markdown Reading view. Its restrained line, proportional heading marks, animated wave, and optional orbs sit alongside the visual language of Crisp File Explorer without occupying Obsidian's native right sidebar.
 
-## Version 1 behavior
+## v0.3 behavior
 
 - Works in Markdown Reading view on desktop Obsidian.
-- Shows progress from `0.00` to `1.00`, evenly distributed ticks, completed-tick state, and a theme-accent current-position marker.
-- Reveals H2, H3, and H4 labels on hover or keyboard focus. H1, H5, H6, and headings inside embedded notes are excluded.
-- Positions heading labels near their rendered document positions and separates labels that would overlap.
+- Shows borderless progress from `0.00` to `1.00`, completed-tick state, content-proportional H2-H4 marks, and a spring-following current-position orb.
+- Bends nearby fine and heading marks leftward in a natural wave while scrolling. Reduced-motion mode snaps directly to the reading position.
+- Reveals H2, H3, and H4 labels when the pointer comes within 96px, on hover, or on keyboard focus. Labels remain clickable for three seconds after leaving.
+- Wraps long labels to at most three lines and uses their measured heights to prevent collisions without changing document layout.
 - Clicking a label jumps to its heading. Clicking the track jumps to the corresponding document position.
 - Hides when the pane is narrower than 680 px or the note does not scroll.
 - Gives every side-by-side Reading pane an independent rail.
+
+## Orb style setting
+
+Open **Settings → Crisp Reading Rail → Orb style** to choose Default, Random per day, 19 material/character styles, or **Follow Crisp File Explorer**. Follow mode observes only the companion orb's live `data-orb-style` value in the same Obsidian window; if it is unavailable, the rail uses Default.
+
+All SVG and PNG resources used by Crisp Reading Rail are installed in this plugin's own `assets/` directory. It does not read Crisp File Explorer's files or private settings at runtime.
 
 ## Keyboard interaction
 
@@ -29,15 +36,15 @@ Keyboard handling is local to the focused rail. The plugin does not register def
 2. Run `npm run deploy -- "/path/to/your/vault"`.
 3. In Obsidian, open **Settings → Community plugins**, reload plugins if needed, and enable **Crisp Reading Rail**.
 
-The deployment command copies only `main.js`, `manifest.json`, and `styles.css` into `.obsidian/plugins/crisp-reading-rail`.
+The deployment command copies `main.js`, `manifest.json`, `styles.css`, and the complete `assets/` directory into `.obsidian/plugins/crisp-reading-rail`. Existing `data.json` settings are preserved.
 
 ## Privacy and safety
 
 Crisp Reading Rail does not access the network, collect telemetry, edit notes, change files, or alter the workspace layout. It reads only the metadata and rendered headings for currently open Markdown Reading panes.
 
-## Known version 1 exclusions
+## Known exclusions
 
-Version 1 does not support Live Preview, Source mode, mobile layouts, custom appearance settings, native Outline replacement, embedded-note headings, or H1/H5/H6 navigation.
+The plugin does not support Live Preview, Source mode, mobile layouts, native Outline replacement, embedded-note headings, or H1/H5/H6 navigation.
 
 ## Development
 
