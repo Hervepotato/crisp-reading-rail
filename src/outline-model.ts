@@ -74,34 +74,85 @@ export function resolveLabelPositions(
   labelHeight: number,
   minGap: number,
 ): OutlineEntry[] {
+  return resolveVariableLabelPositions(
+    entries,
+    trackHeight,
+    entries.map(() => labelHeight),
+    minGap,
+  );
+}
+
+export function resolveVariableLabelPositions(
+  entries: readonly OutlineEntry[],
+  trackHeight: number,
+  labelHeights: readonly number[],
+  minGap: number,
+): OutlineEntry[] {
   if (entries.length === 0) {
     return [];
   }
 
-  const maxY = Math.max(0, trackHeight - labelHeight);
-  const separation = Math.max(0, labelHeight + minGap);
-  const positions = entries.map((entry) => (
-    Math.min(maxY, Math.max(0, entry.progress * trackHeight - labelHeight / 2))
+  const availableHeight = Math.max(0, trackHeight);
+  const gap = Math.max(0, minGap);
+  const heights = entries.map((_, index) => (
+    Math.min(availableHeight, Math.max(0, labelHeights[index] ?? 0))
   ));
+  const requestedHeight = heights.reduce((sum, height) => sum + height, 0)
+    + gap * Math.max(0, entries.length - 1);
 
-  for (let index = 1; index < positions.length; index += 1) {
-    positions[index] = Math.max(positions[index], positions[index - 1] + separation);
+  if (requestedHeight > availableHeight) {
+    const sharedMaxY = heights.reduce(
+      (maximum, height) => Math.min(maximum, availableHeight - height),
+      availableHeight,
+    );
+    const positions = entries.map((_, index) => (
+      entries.length === 1 ? 0 : sharedMaxY * index / (entries.length - 1)
+    ));
+    return withLabelPositions(entries, positions);
   }
 
-  if (positions[positions.length - 1] > maxY) {
-    positions[positions.length - 1] = maxY;
+  const positions = entries.map((entry, index) => {
+    const height = heights[index];
+    const maxY = Math.max(0, availableHeight - height);
+    return Math.min(
+      maxY,
+      Math.max(0, entry.progress * availableHeight - height / 2),
+    );
+  });
+
+  for (let index = 1; index < positions.length; index += 1) {
+    positions[index] = Math.max(
+      positions[index],
+      positions[index - 1] + heights[index - 1] + gap,
+    );
+  }
+
+  const lastIndex = positions.length - 1;
+  const lastMaxY = Math.max(0, availableHeight - heights[lastIndex]);
+  if (positions[lastIndex] > lastMaxY) {
+    positions[lastIndex] = lastMaxY;
     for (let index = positions.length - 2; index >= 0; index -= 1) {
-      positions[index] = Math.min(positions[index], positions[index + 1] - separation);
+      positions[index] = Math.min(
+        positions[index],
+        positions[index + 1] - heights[index] - gap,
+      );
     }
   }
 
   if (positions[0] < 0) {
-    const usableGap = positions.length === 1 ? 0 : maxY / (positions.length - 1);
-    for (let index = 0; index < positions.length; index += 1) {
-      positions[index] = index * usableGap;
-    }
+    const shift = -positions[0];
+    positions.forEach((position, index) => {
+      positions[index] = position + shift;
+    });
   }
 
+  return withLabelPositions(entries, positions);
+}
+
+function withLabelPositions(
+  entries: readonly OutlineEntry[],
+  positions: readonly number[],
+): OutlineEntry[] {
   return entries.map((entry, index) => ({
     ...entry,
     labelY: positions[index],

@@ -3,6 +3,7 @@ import {
   activeHeadingIndex,
   buildOutlineEntries,
   resolveLabelPositions,
+  resolveVariableLabelPositions,
 } from "../src/outline-model";
 
 const headings = [
@@ -60,6 +61,52 @@ describe("outline model", () => {
     expect(result[1].labelY - result[0].labelY).toBeGreaterThanOrEqual(20);
     expect(result[0].labelY).toBeGreaterThanOrEqual(0);
     expect(result[1].labelY).toBeLessThanOrEqual(84);
+  });
+
+  it("separates labels using their measured heights", () => {
+    const entries = [
+      { text: "A", level: 2, sourceLine: 1, documentY: 10, progress: 0.3, labelY: 0, target: null },
+      { text: "B", level: 3, sourceLine: 2, documentY: 11, progress: 0.31, labelY: 0, target: null },
+      { text: "C", level: 4, sourceLine: 3, documentY: 12, progress: 0.32, labelY: 0, target: null },
+    ];
+    const heights = [18, 36, 54];
+    const result = resolveVariableLabelPositions(entries, 160, heights, 4);
+
+    expect(result[1].labelY - result[0].labelY).toBeGreaterThanOrEqual(22);
+    expect(result[2].labelY - result[1].labelY).toBeGreaterThanOrEqual(40);
+    expect(result[0].labelY).toBeGreaterThanOrEqual(0);
+    expect(result[2].labelY + heights[2]).toBeLessThanOrEqual(160);
+  });
+
+  it("keeps mixed-height labels inside both track edges", () => {
+    const entries = [
+      { text: "Top", level: 2, sourceLine: 1, documentY: 0, progress: 0, labelY: 0, target: null },
+      { text: "Bottom", level: 2, sourceLine: 2, documentY: 100, progress: 1, labelY: 0, target: null },
+    ];
+    const heights = [48, 30];
+    const result = resolveVariableLabelPositions(entries, 100, heights, 4);
+
+    expect(result[0].labelY).toBe(0);
+    expect(result[1].labelY + heights[1]).toBe(100);
+  });
+
+  it("falls back to monotonic in-bounds positions when over-constrained", () => {
+    const entries = Array.from({ length: 4 }, (_, index) => ({
+      text: String(index),
+      level: 2,
+      sourceLine: index,
+      documentY: index,
+      progress: index / 3,
+      labelY: 0,
+      target: null,
+    }));
+    const result = resolveVariableLabelPositions(entries, 60, [30, 30, 30, 30], 4);
+    const positions = result.map((entry) => entry.labelY);
+
+    expect(positions).toEqual([...positions].sort((a, b) => a - b));
+    expect(positions[0]).toBeGreaterThanOrEqual(0);
+    expect(positions[3]).toBeLessThanOrEqual(30);
+    expect(positions.every(Number.isFinite)).toBe(true);
   });
 
   it("returns no active heading before the first threshold", () => {
