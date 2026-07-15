@@ -41,23 +41,6 @@ interface ControllerRecord extends PaneElements {
   controller: ControllerLike;
 }
 
-interface TabGroupLike {
-  type?: string;
-  children?: readonly WorkspaceLeaf[];
-  currentTab?: number;
-}
-
-function isSelectedTabLeaf(leaf: WorkspaceLeaf): boolean {
-  const parent = (leaf as WorkspaceLeaf & { parent?: TabGroupLike }).parent;
-  if (parent?.type !== "tabs") {
-    return true;
-  }
-  if (!parent.children || !Number.isInteger(parent.currentTab)) {
-    return true;
-  }
-  return parent.children[parent.currentTab as number] === leaf;
-}
-
 function defaultResolveElements(view: MarkdownView): PaneElements | null {
   const host = view.containerEl;
   const preview = view.previewMode?.containerEl;
@@ -100,9 +83,6 @@ export class ReadingPaneRegistry {
     const eligible = new Set<WorkspaceLeaf>();
 
     this.context.workspace.iterateAllLeaves((leaf) => {
-      if (!isSelectedTabLeaf(leaf)) {
-        return;
-      }
       const view = leaf.view;
       if (!this.isMarkdownView(view) || view.getMode() !== "preview") {
         return;

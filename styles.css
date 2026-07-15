@@ -1,8 +1,5 @@
 .crisp-reading-rail {
   --crisp-reading-progress: 0;
-  --crisp-reading-ease: cubic-bezier(0.23, 1, 0.32, 1);
-  --crisp-reading-accent: var(--interactive-accent);
-  --crisp-reading-line: var(--text-faint);
   position: absolute;
   z-index: var(--layer-cover, 5);
   top: 18px;
@@ -10,7 +7,7 @@
   bottom: 18px;
   width: 30px;
   color: var(--text-muted);
-  font-size: calc(var(--font-ui-smaller) * 0.94);
+  font-size: var(--font-ui-smaller);
   pointer-events: auto;
 }
 
@@ -20,7 +17,6 @@
 
 .crisp-reading-rail .crisp-reading-rail__track {
   position: relative;
-  isolation: isolate;
   width: 100%;
   height: 100%;
   outline: none;
@@ -34,33 +30,8 @@
   right: 7px;
   bottom: 0;
   width: 1px;
-  z-index: 0;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--crisp-reading-line) 46%, transparent);
-  opacity: 0.36;
-}
-
-.crisp-reading-rail .crisp-reading-rail__track::after {
-  content: "";
-  position: absolute;
-  top: calc(var(--crisp-reading-progress) * 100%);
-  right: 7px;
-  width: 1px;
-  height: 192px;
-  z-index: 0;
-  background: linear-gradient(
-    to bottom,
-    transparent 0%,
-    color-mix(in srgb, var(--crisp-reading-line) 10%, transparent) 12%,
-    color-mix(in srgb, var(--crisp-reading-line) 34%, transparent) 28%,
-    color-mix(in srgb, var(--crisp-reading-line) 82%, transparent) 50%,
-    color-mix(in srgb, var(--crisp-reading-line) 34%, transparent) 72%,
-    color-mix(in srgb, var(--crisp-reading-line) 10%, transparent) 88%,
-    transparent 100%
-  );
-  pointer-events: none;
-  transform: translateY(-50%);
-  will-change: transform;
+  background: var(--text-faint);
+  opacity: 0.45;
 }
 
 .crisp-reading-rail .crisp-reading-rail__ticks {
@@ -68,7 +39,6 @@
   inset: 0 5px 0 auto;
   display: flex;
   width: 8px;
-  z-index: 1;
   flex-direction: column;
   justify-content: space-between;
   pointer-events: none;
@@ -79,26 +49,20 @@
   width: 5px;
   height: 1px;
   margin-left: auto;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--text-muted) 48%, transparent);
-  opacity: 0.56;
+  background: var(--text-muted);
+  opacity: 0.58;
   transform: translateX(var(--crisp-reading-wave-x, 0px));
-  transition:
-    width 110ms var(--crisp-reading-ease),
-    opacity 110ms var(--crisp-reading-ease),
-    background-color 110ms var(--crisp-reading-ease);
-  will-change: transform;
+  transition: width 120ms ease, opacity 120ms ease;
 }
 
 .crisp-reading-rail .crisp-reading-rail__tick.is-read {
-  width: 4px;
-  opacity: 0.28;
+  width: 3px;
+  opacity: 0.22;
 }
 
 .crisp-reading-rail .crisp-reading-rail__heading-ticks {
   position: absolute;
   inset: 0;
-  z-index: 1;
   pointer-events: none;
 }
 
@@ -109,15 +73,10 @@
   display: block;
   width: 12px;
   height: 2px;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--text-muted) 70%, transparent);
-  opacity: 0.78;
+  background: var(--text-normal);
+  opacity: 0.72;
   transform: translate(var(--crisp-reading-wave-x, 0px), -50%);
-  transition:
-    background-color 110ms var(--crisp-reading-ease),
-    opacity 110ms var(--crisp-reading-ease),
-    width 110ms var(--crisp-reading-ease);
-  will-change: transform;
+  transition: background-color 120ms ease, opacity 120ms ease, width 120ms ease;
 }
 
 .crisp-reading-rail .crisp-reading-rail__heading-tick[data-level="2"] {
@@ -129,7 +88,7 @@
 }
 
 .crisp-reading-rail .crisp-reading-rail__heading-tick.is-active {
-  background: var(--crisp-reading-accent);
+  background: var(--interactive-accent);
   opacity: 1;
 }
 
@@ -138,17 +97,14 @@
 .crisp-reading-rail .crisp-reading-rail__progress {
   position: absolute;
   top: calc(var(--crisp-reading-progress) * 100%);
-  z-index: 2;
   pointer-events: none;
 }
 
 .crisp-reading-rail .crisp-reading-rail__active {
   right: 4px;
-  width: 10px;
+  width: 12px;
   height: 1px;
-  border-radius: 999px;
-  background: var(--crisp-reading-accent);
-  opacity: 0.72;
+  background: var(--interactive-accent);
   transform: translateY(-50%);
 }
 
@@ -160,14 +116,8 @@
   place-items: center;
   border: 1px solid var(--background-primary);
   border-radius: 50%;
-  background: var(--crisp-reading-accent);
-  scale: 1;
+  background: var(--interactive-accent);
   transform: translate(50%, -50%);
-  transition: scale 110ms var(--crisp-reading-ease);
-}
-
-.crisp-reading-rail .crisp-reading-rail__track:active .crisp-reading-rail__orb {
-  scale: 0.97;
 }
 
 .crisp-reading-rail .crisp-reading-rail__orb:not([data-orb-style="default"]) {
@@ -225,30 +175,19 @@
   border: 0;
   border-radius: 0;
   background: transparent;
-  color: var(--crisp-reading-accent);
+  color: var(--interactive-accent);
   font-family: var(--font-monospace);
   font-size: 9px;
   font-variant-numeric: tabular-nums;
   line-height: 1.2;
-  opacity: 0.54;
-  transform: translate(3px, -50%);
-  transition:
-    color 110ms var(--crisp-reading-ease),
-    opacity 110ms var(--crisp-reading-ease),
-    transform 110ms var(--crisp-reading-ease);
-}
-
-.crisp-reading-rail:hover .crisp-reading-rail__progress,
-.crisp-reading-rail:focus-within .crisp-reading-rail__progress,
-.crisp-reading-rail.is-expanded .crisp-reading-rail__progress {
-  opacity: 0.84;
-  transform: translate(0, -50%);
+  opacity: 0.72;
+  transform: translateY(-50%);
 }
 
 .crisp-reading-rail .crisp-reading-rail__labels {
   position: absolute;
   inset: 0 24px 0 auto;
-  width: min(220px, 26vw);
+  width: min(240px, 30vw);
   pointer-events: none;
 }
 
@@ -258,29 +197,24 @@
   right: 0;
   display: -webkit-box;
   max-width: 100%;
-  min-height: 22px;
+  min-height: 20px;
   margin: 0;
-  padding: 3px 0;
+  padding: 1px 0;
   border: 0;
   border-radius: 0;
   background: transparent;
   box-shadow: none;
-  color: var(--text-muted);
+  color: var(--text-normal);
   font: inherit;
-  font-weight: 400;
-  letter-spacing: 0.01em;
-  line-height: 1.32;
+  line-height: 1.35;
   opacity: 0;
   overflow: hidden;
   overflow-wrap: anywhere;
   pointer-events: none;
   text-align: right;
   text-overflow: ellipsis;
-  transform: translateX(calc(var(--crisp-reading-level) * -6px + 4px));
-  transition:
-    color 110ms var(--crisp-reading-ease),
-    opacity 110ms var(--crisp-reading-ease),
-    transform 110ms var(--crisp-reading-ease);
+  transform: translateX(calc(var(--crisp-reading-level) * -8px + 5px));
+  transition: opacity 120ms ease, transform 120ms ease;
   white-space: normal;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 3;
@@ -289,39 +223,31 @@
 .crisp-reading-rail:hover .crisp-reading-rail__label,
 .crisp-reading-rail:focus-within .crisp-reading-rail__label,
 .crisp-reading-rail.is-expanded .crisp-reading-rail__label {
-  opacity: 0.72;
+  opacity: 0.92;
   pointer-events: auto;
-  transform: translateX(calc(var(--crisp-reading-level) * -6px));
+  transform: translateX(calc(var(--crisp-reading-level) * -8px));
 }
 
 .crisp-reading-rail .crisp-reading-rail__label:hover,
 .crisp-reading-rail .crisp-reading-rail__label:focus-visible,
 .crisp-reading-rail .crisp-reading-rail__label[aria-current="location"] {
-  color: var(--crisp-reading-accent);
-  font-weight: 500;
-  opacity: 1;
+  color: var(--interactive-accent);
 }
 
 .crisp-reading-rail .crisp-reading-rail__label:focus-visible {
-  outline: 1px solid var(--crisp-reading-accent);
+  outline: 1px solid var(--interactive-accent);
   outline-offset: 2px;
 }
 
 .crisp-reading-rail .crisp-reading-rail__track:focus-visible::before {
-  background: var(--crisp-reading-accent);
-  opacity: 0.72;
+  background: var(--interactive-accent);
+  opacity: 0.8;
 }
 
 @media (prefers-reduced-motion: reduce) {
   .crisp-reading-rail .crisp-reading-rail__tick,
   .crisp-reading-rail .crisp-reading-rail__heading-tick,
-  .crisp-reading-rail .crisp-reading-rail__orb,
-  .crisp-reading-rail .crisp-reading-rail__progress,
   .crisp-reading-rail .crisp-reading-rail__label {
     transition: none;
-  }
-
-  .crisp-reading-rail .crisp-reading-rail__track:active .crisp-reading-rail__orb {
-    scale: 1;
   }
 }
