@@ -1,12 +1,17 @@
 import { clamp01, progressFromPointer } from "./progress";
 import type { OutlineEntry } from "./types";
 
+const PROXIMITY_DISTANCE = 96;
+const COLLAPSE_DELAY = 3000;
+
 export interface RailViewCallbacks {
   onHeadingSelect(entry: OutlineEntry): void;
   onProgressSelect(progress: number): void;
 }
 
 export class ReadingRailView {
+  private readonly host: HTMLElement;
+  private readonly window: Window;
   private readonly root: HTMLElement;
   private readonly track: HTMLElement;
   private readonly ticksContainer: HTMLElement;
@@ -18,9 +23,16 @@ export class ReadingRailView {
   private headingTicks: HTMLElement[] = [];
   private labels: HTMLButtonElement[] = [];
   private currentProgress = 0;
+  private collapseTimer: number | null = null;
 
   private constructor(host: HTMLElement, callbacks: RailViewCallbacks) {
     const document = host.ownerDocument;
+    const window = document.defaultView;
+    if (!window) {
+      throw new Error("Crisp Reading Rail requires a window-backed document.");
+    }
+    this.host = host;
+    this.window = window;
     this.callbacks = callbacks;
 
     this.root = document.createElement("nav");
@@ -72,6 +84,10 @@ export class ReadingRailView {
 
     this.track.addEventListener("pointerdown", this.handlePointerDown);
     this.track.addEventListener("keydown", this.handleKeyDown);
+    this.host.addEventListener("pointermove", this.handlePointerMove, { passive: true });
+    this.host.addEventListener("pointerleave", this.handlePointerLeave);
+    this.root.addEventListener("focusin", this.handleFocusIn);
+    this.root.addEventListener("focusout", this.handleFocusOut);
   }
 
   static mount(host: HTMLElement, callbacks: RailViewCallbacks): ReadingRailView {
@@ -145,20 +161,85 @@ export class ReadingRailView {
   }
 
   setExpanded(expanded: boolean): void {
+    if (!expanded) {
+      this.cancelCollapse();
+    }
     this.root.classList.toggle("is-expanded", expanded);
   }
 
   setVisible(visible: boolean): void {
     this.root.hidden = !visible;
+    if (!visible) {
+      this.setExpanded(false);
+    }
   }
 
   destroy(): void {
+    this.cancelCollapse();
     this.track.removeEventListener("pointerdown", this.handlePointerDown);
     this.track.removeEventListener("keydown", this.handleKeyDown);
+    this.host.removeEventListener("pointermove", this.handlePointerMove);
+    this.host.removeEventListener("pointerleave", this.handlePointerLeave);
+    this.root.removeEventListener("focusin", this.handleFocusIn);
+    this.root.removeEventListener("focusout", this.handleFocusOut);
     this.root.remove();
     this.ticks = [];
     this.headingTicks = [];
     this.labels = [];
+  }
+
+  private readonly handlePointerMove = (event: PointerEvent): void => {
+    if (this.root.contains(event.target as Node | null)) {
+      this.expandNow();
+      return;
+    }
+    const bounds = this.root.getBoundingClientRect();
+    const verticallyAligned = event.clientY >= bounds.top && event.clientY <= bounds.bottom;
+    const horizontallyNear = event.clientX >= bounds.left - PROXIMITY_DISTANCE
+      && event.clientX <= bounds.right;
+    if (verticallyAligned && horizontallyNear) {
+      this.expandNow();
+    } else {
+      this.scheduleCollapse();
+    }
+  };
+
+  private readonly handlePointerLeave = (): void => {
+    this.scheduleCollapse();
+  };
+
+  private readonly handleFocusIn = (): void => {
+    this.expandNow();
+  };
+
+  private readonly handleFocusOut = (event: FocusEvent): void => {
+    if (this.root.contains(event.relatedTarget as Node | null)) {
+      return;
+    }
+    this.scheduleCollapse();
+  };
+
+  private expandNow(): void {
+    this.cancelCollapse();
+    this.root.classList.add("is-expanded");
+  }
+
+  private scheduleCollapse(): void {
+    if (!this.root.classList.contains("is-expanded") || this.collapseTimer !== null) {
+      return;
+    }
+    this.collapseTimer = this.window.setTimeout(() => {
+      this.collapseTimer = null;
+      this.root.classList.remove("is-expanded");
+    }, COLLAPSE_DELAY);
+  }
+
+  private cancelCollapse(): void {
+    if (this.collapseTimer === null) {
+      return;
+    }
+    this.window.clearTimeout(this.collapseTimer);
+    this.collapseTimer = null;
   }
 
   private readonly handlePointerDown = (event: PointerEvent): void => {
