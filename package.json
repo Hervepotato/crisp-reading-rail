@@ -8,7 +8,7 @@
     "dev": "node esbuild.config.mjs",
     "build": "tsc --noEmit --skipLibCheck && node esbuild.config.mjs production",
     "test": "vitest run",
-    "lint": "eslint src tests scripts *.ts *.mjs",
+    "lint": "eslint src tests scripts *.ts *.mjs --no-error-on-unmatched-pattern",
     "check": "npm run test && npm run lint && npm run build"
   },
   "keywords": [
