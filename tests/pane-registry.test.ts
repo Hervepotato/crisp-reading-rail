@@ -110,6 +110,50 @@ describe("ReadingPaneRegistry", () => {
     expect(replacement.destroy).toHaveBeenCalledTimes(1);
   });
 
+  it("mounts a controller only for the selected leaf in each tab group", () => {
+    const views = ["active.md", "background.md"].map((path) => ({
+      file: { path },
+      getMode: () => "preview" as const,
+    }));
+    const leaves = views.map((view) => ({ view })) as unknown as WorkspaceLeaf[];
+    const tabGroup = {
+      type: "tabs",
+      children: leaves,
+      currentTab: 0,
+    };
+    leaves.forEach((leaf) => {
+      (leaf as unknown as { parent: typeof tabGroup }).parent = tabGroup;
+    });
+    const controllers = [makeController(), makeController()];
+    const factory = vi.fn()
+      .mockReturnValueOnce(controllers[0])
+      .mockReturnValueOnce(controllers[1]);
+    const registry = new ReadingPaneRegistry(
+      {
+        workspace: { iterateAllLeaves: (callback) => leaves.forEach(callback) },
+        metadataCache: { getFileCache: () => ({ headings: [] }) },
+      },
+      {
+        isMarkdownView: (view: View): view is MarkdownView => "getMode" in view,
+        resolveElements: () => {
+          const host = document.createElement("div");
+          return { host, scroller: host, preview: host };
+        },
+        createController: factory,
+      },
+    );
+
+    registry.reconcile();
+    expect(factory).toHaveBeenCalledTimes(1);
+    expect(controllers[0].start).toHaveBeenCalledTimes(1);
+
+    tabGroup.currentTab = 1;
+    registry.reconcile();
+    expect(factory).toHaveBeenCalledTimes(2);
+    expect(controllers[0].destroy).toHaveBeenCalledTimes(1);
+    expect(controllers[1].start).toHaveBeenCalledTimes(1);
+  });
+
   it("refreshes appearance in every live pane without rebuilding controllers", () => {
     const views = ["one.md", "two.md"].map((path) => ({
       file: { path },
