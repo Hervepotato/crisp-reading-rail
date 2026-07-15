@@ -196,7 +196,7 @@ describe("ReadingRailController", () => {
     controller.destroy();
   });
 
-  it("uses an immediate jump when smooth scrolling would cross many viewports", () => {
+  it("keeps long-distance heading navigation smooth", () => {
     const { host, scroller } = makeFixture();
     setMetric(scroller, "scrollHeight", 10000);
     setMetric(scroller, "scrollTop", 5000);
@@ -206,7 +206,8 @@ describe("ReadingRailController", () => {
       host,
       scroller,
       preview: scroller,
-      getHeadings: () => [],
+      getHeadings: () => [{ text: "First", level: 2, sourceLine: 0 }],
+      getLineCount: () => 101,
       environment: clock.environment,
       createView: (_host, callbacks) => {
         view.callbacks = callbacks;
@@ -215,8 +216,9 @@ describe("ReadingRailController", () => {
     });
     controller.start();
     clock.flushFrame();
-    view.callbacks?.onProgressSelect(0);
-    expect(scroller.scrollTo).toHaveBeenLastCalledWith({ top: 0, behavior: "auto" });
+    const firstOutline = vi.mocked(view.setOutline).mock.calls[0][0];
+    view.callbacks?.onHeadingSelect(firstOutline[0]);
+    expect(scroller.scrollTo).toHaveBeenLastCalledWith({ top: 0, behavior: "smooth" });
     controller.destroy();
   });
 

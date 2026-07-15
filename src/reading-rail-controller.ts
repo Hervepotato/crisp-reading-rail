@@ -304,13 +304,9 @@ export class ReadingRailController {
   private scrollToTop(top: number): void {
     const maxScroll = Math.max(0, this.scroller.scrollHeight - this.scroller.clientHeight);
     const safeTop = Math.min(maxScroll, Math.max(0, top));
-    const crossesManyViewports = Math.abs(safeTop - this.scroller.scrollTop)
-      > this.scroller.clientHeight * 3;
     this.scroller.scrollTo({
       top: safeTop,
-      behavior: this.environment.reducedMotion() || crossesManyViewports
-        ? "auto"
-        : "smooth",
+      behavior: this.environment.reducedMotion() ? "auto" : "smooth",
     });
   }
 }
