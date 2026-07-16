@@ -19,6 +19,7 @@ import type { OutlineEntry } from "./types";
 const PROXIMITY_DISTANCE = 96;
 const COLLAPSE_DELAY = 3000;
 const LABEL_GAP = 4;
+const LINE_FOCUS_HEIGHT = 192;
 const ORB_ROTATION_PER_PX = 3.2;
 
 interface MutationObserverHandle {
@@ -29,6 +30,8 @@ interface MutationObserverHandle {
 export interface RailViewCallbacks {
   onHeadingSelect(entry: OutlineEntry): void;
   onProgressSelect(progress: number): void;
+  onProgressDrag?(progress: number): void;
+  onProgressDragEnd?(progress: number): void;
 }
 
 export interface RailAppearanceProvider {
@@ -58,6 +61,8 @@ export class ReadingRailView {
   private readonly window: Window;
   private readonly root: HTMLElement;
   private readonly track: HTMLElement;
+  private readonly line: HTMLElement;
+  private readonly lineFocus: HTMLElement;
   private readonly ticksContainer: HTMLElement;
   private readonly headingTicksContainer: HTMLElement;
   private readonly active: HTMLElement;
@@ -79,6 +84,7 @@ export class ReadingRailView {
   private lastReadTickIndex = Number.MIN_SAFE_INTEGER;
   private lastProgressText = "";
   private lastProgressPercentage = -1;
+  private lastLineFocusTransform = "";
   private currentProgress = 0;
   private trackHeight = 1;
   private targetPosition = 0;
@@ -89,6 +95,7 @@ export class ReadingRailView {
   private frameId: number | null = null;
   private lastFrameTimestamp: number | null = null;
   private collapseTimer: number | null = null;
+  private dragPointerId: number | null = null;
   private followObserver: MutationObserverHandle | null = null;
   private orbImage: HTMLImageElement | null = null;
   private orbMedia: HTMLElement | null = null;
@@ -131,6 +138,14 @@ export class ReadingRailView {
     this.track.setAttribute("aria-valuemax", "100");
     this.track.setAttribute("aria-valuenow", "0");
 
+    this.line = document.createElement("div");
+    this.line.className = "crisp-reading-rail__line";
+    this.line.setAttribute("aria-hidden", "true");
+
+    this.lineFocus = document.createElement("div");
+    this.lineFocus.className = "crisp-reading-rail__line-focus";
+    this.line.append(this.lineFocus);
+
     this.ticksContainer = document.createElement("div");
     this.ticksContainer.className = "crisp-reading-rail__ticks";
     this.ticksContainer.setAttribute("aria-hidden", "true");
@@ -156,6 +171,7 @@ export class ReadingRailView {
     this.labelsContainer.className = "crisp-reading-rail__labels";
 
     this.track.append(
+      this.line,
       this.ticksContainer,
       this.headingTicksContainer,
       this.active,
@@ -167,6 +183,7 @@ export class ReadingRailView {
 
     this.track.addEventListener("pointerdown", this.handlePointerDown);
     this.track.addEventListener("keydown", this.handleKeyDown);
+    this.orb.addEventListener("pointerdown", this.handleOrbPointerDown);
     this.host.addEventListener("pointermove", this.handlePointerMove, { passive: true });
     this.host.addEventListener("pointerleave", this.handlePointerLeave);
     this.root.addEventListener("focusin", this.handleFocusIn);
@@ -260,20 +277,10 @@ export class ReadingRailView {
   }
 
   setProgress(progress: number): void {
-    this.currentProgress = clamp01(progress);
-    this.targetPosition = this.currentProgress * this.trackHeight;
-    const percentage = Math.round(this.currentProgress * 100);
-    const progressText = this.currentProgress.toFixed(2);
-    if (progressText !== this.lastProgressText) {
-      this.progressLabel.textContent = progressText;
-      this.track.setAttribute("aria-valuetext", progressText);
-      this.lastProgressText = progressText;
+    if (this.dragPointerId !== null) {
+      return;
     }
-    if (percentage !== this.lastProgressPercentage) {
-      this.track.setAttribute("aria-valuenow", percentage.toString());
-      this.lastProgressPercentage = percentage;
-    }
-    this.updateReadTicks();
+    this.updateProgressState(progress);
 
     if (!this.visible) {
       return;
@@ -309,6 +316,11 @@ export class ReadingRailView {
     this.visible = visible;
     this.root.hidden = !visible;
     if (!visible) {
+      const dragProgress = this.dragPointerId === null ? null : this.currentProgress;
+      this.finishDrag();
+      if (dragProgress !== null) {
+        this.callbacks.onProgressDragEnd?.(dragProgress);
+      }
       this.cancelAnimation();
       this.positionInitialized = false;
       this.setExpanded(false);
@@ -342,6 +354,7 @@ export class ReadingRailView {
       return;
     }
     this.destroyed = true;
+    this.finishDrag();
     this.cancelAnimation();
     this.cancelCollapse();
     this.followObserver?.disconnect();
@@ -352,6 +365,7 @@ export class ReadingRailView {
     }
     this.track.removeEventListener("pointerdown", this.handlePointerDown);
     this.track.removeEventListener("keydown", this.handleKeyDown);
+    this.orb.removeEventListener("pointerdown", this.handleOrbPointerDown);
     this.host.removeEventListener("pointermove", this.handlePointerMove);
     this.host.removeEventListener("pointerleave", this.handlePointerLeave);
     this.root.removeEventListener("focusin", this.handleFocusIn);
@@ -456,6 +470,13 @@ export class ReadingRailView {
     this.active.style.transform = `${translateY} translateY(-50%)`;
     this.orb.style.transform = `${translateY} translate(50%, -50%)`;
     this.progressLabel.style.transform = `${translateY} translateY(-50%)`;
+    const lineFocusTransform = `translate3d(0px, ${
+      this.displayedPosition - LINE_FOCUS_HEIGHT / 2
+    }px, 0)`;
+    if (lineFocusTransform !== this.lastLineFocusTransform) {
+      this.lineFocus.style.transform = lineFocusTransform;
+      this.lastLineFocusTransform = lineFocusTransform;
+    }
     this.applyWave(this.ticks, this.tickYPositions, this.tickWaveOffsets);
     this.applyWave(
       this.headingTicks,
@@ -557,6 +578,9 @@ export class ReadingRailView {
   };
 
   private readonly handlePointerLeave = (): void => {
+    if (this.dragPointerId !== null) {
+      return;
+    }
     this.scheduleCollapse();
   };
 
@@ -595,7 +619,13 @@ export class ReadingRailView {
   }
 
   private readonly handlePointerDown = (event: PointerEvent): void => {
-    if ((event.target as Element | null)?.closest(".crisp-reading-rail__label")) {
+    if (
+      event.isPrimary === false
+      || event.button !== 0
+      || (event.target as Element | null)?.closest(
+        ".crisp-reading-rail__label, .crisp-reading-rail__orb",
+      )
+    ) {
       return;
     }
     const bounds = this.track.getBoundingClientRect();
@@ -608,6 +638,100 @@ export class ReadingRailView {
       progressFromPointer(event.clientY, bounds.top, bounds.height),
     );
   };
+
+  private readonly handleOrbPointerDown = (event: PointerEvent): void => {
+    if (
+      this.dragPointerId !== null
+      || event.isPrimary === false
+      || event.button !== 0
+    ) {
+      return;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    this.dragPointerId = event.pointerId;
+    this.cancelAnimation();
+    this.expandNow();
+    this.root.classList.add("is-dragging");
+    this.orb.classList.add("is-dragging");
+    this.track.focus({ preventScroll: true });
+    try {
+      this.orb.setPointerCapture(event.pointerId);
+    } catch {
+      // Pointer capture can be unavailable in synthetic or closing windows.
+    }
+    this.updateDragProgress(event.clientY);
+    this.window.addEventListener("pointermove", this.handleDragPointerMove, {
+      passive: false,
+    });
+    this.window.addEventListener("pointerup", this.handleDragPointerUp, {
+      passive: false,
+    });
+    this.window.addEventListener("pointercancel", this.handleDragPointerUp, {
+      passive: false,
+    });
+    this.window.addEventListener("blur", this.handleDragBlur);
+  };
+
+  private readonly handleDragPointerMove = (event: PointerEvent): void => {
+    if (event.pointerId !== this.dragPointerId) {
+      return;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    this.updateDragProgress(event.clientY);
+  };
+
+  private readonly handleDragPointerUp = (event: PointerEvent): void => {
+    if (event.pointerId !== this.dragPointerId) {
+      return;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    const progress = event.type === "pointercancel"
+      ? this.currentProgress
+      : this.updateDragProgress(event.clientY) ?? this.currentProgress;
+    this.finishDrag();
+    this.callbacks.onProgressDragEnd?.(progress);
+    this.scheduleCollapse();
+  };
+
+  private readonly handleDragBlur = (): void => {
+    const progress = this.currentProgress;
+    this.finishDrag();
+    this.callbacks.onProgressDragEnd?.(progress);
+  };
+
+  private updateDragProgress(clientY: number): number | null {
+    const bounds = this.track.getBoundingClientRect();
+    if (bounds.height <= 0) {
+      return null;
+    }
+    const progress = progressFromPointer(clientY, bounds.top, bounds.height);
+    this.updateProgressState(progress);
+    this.snapToTarget();
+    this.callbacks.onProgressDrag?.(progress);
+    return progress;
+  }
+
+  private finishDrag(): void {
+    const pointerId = this.dragPointerId;
+    if (pointerId === null) {
+      return;
+    }
+    try {
+      this.orb.releasePointerCapture(pointerId);
+    } catch {
+      // Capture may already be released by the host window.
+    }
+    this.dragPointerId = null;
+    this.root.classList.remove("is-dragging");
+    this.orb.classList.remove("is-dragging");
+    this.window.removeEventListener("pointermove", this.handleDragPointerMove);
+    this.window.removeEventListener("pointerup", this.handleDragPointerUp);
+    this.window.removeEventListener("pointercancel", this.handleDragPointerUp);
+    this.window.removeEventListener("blur", this.handleDragBlur);
+  }
 
   private readonly handleKeyDown = (event: KeyboardEvent): void => {
     if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) {
@@ -661,5 +785,22 @@ export class ReadingRailView {
       }
     }
     this.lastReadTickIndex = nextIndex;
+  }
+
+  private updateProgressState(progress: number): void {
+    this.currentProgress = clamp01(progress);
+    this.targetPosition = this.currentProgress * this.trackHeight;
+    const percentage = Math.round(this.currentProgress * 100);
+    const progressText = this.currentProgress.toFixed(2);
+    if (progressText !== this.lastProgressText) {
+      this.progressLabel.textContent = progressText;
+      this.track.setAttribute("aria-valuetext", progressText);
+      this.lastProgressText = progressText;
+    }
+    if (percentage !== this.lastProgressPercentage) {
+      this.track.setAttribute("aria-valuenow", percentage.toString());
+      this.lastProgressPercentage = percentage;
+    }
+    this.updateReadTicks();
   }
 }

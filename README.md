@@ -2,14 +2,15 @@
 
 Crisp Reading Rail adds a compact reading-progress and heading-navigation rail to the right edge of each eligible Obsidian Markdown Reading view. Its restrained line, proportional heading marks, animated wave, and optional orbs sit alongside the visual language of Crisp File Explorer without occupying Obsidian's native right sidebar.
 
-## v0.3 behavior
+## v0.3.4 behavior
 
 - Works in Markdown Reading view on desktop Obsidian.
 - Shows borderless progress from `0.00` to `1.00`, completed-tick state, content-proportional H2-H4 marks, and a spring-following current-position orb.
 - Bends nearby fine and heading marks leftward in a natural wave while scrolling. Reduced-motion mode snaps directly to the reading position.
 - Reveals H2, H3, and H4 labels when the pointer comes within 96px, on hover, or on keyboard focus. Labels remain clickable for three seconds after leaving.
 - Wraps long labels to at most three lines and uses their measured heights to prevent collisions without changing document layout.
-- Clicking a label jumps to its heading. Clicking the track jumps to the corresponding document position.
+- Clicking a label glides to its heading with the orb aligned to the same heading mark. Clicking the track jumps to the corresponding document position.
+- Dragging the orb scrubs the document continuously and stays locked to the pointer even while Obsidian virtualizes a long note.
 - Hides when the pane is narrower than 680 px or the note does not scroll.
 - Gives every side-by-side Reading pane an independent rail.
 
@@ -31,6 +32,16 @@ Focus the rail's single reading-position slider, then use:
 Keyboard handling is local to the focused rail. The plugin does not register default hotkeys or intercept Obsidian shortcuts globally. Reduced-motion preferences replace smooth navigation with immediate movement.
 
 ## Local installation
+
+For the prebuilt release ZIP:
+
+1. Unzip the archive.
+2. Copy its `crisp-reading-rail` folder into your vault's `.obsidian/plugins/` directory.
+3. In Obsidian, open **Settings → Community plugins**, reload plugins, and enable **Crisp Reading Rail**.
+
+The release archive intentionally omits `data.json`, so it installs with neutral defaults and contains no vault-specific settings.
+
+For development from source:
 
 1. Run `npm ci` and `npm run build`.
 2. Run `npm run deploy -- "/path/to/your/vault"`.

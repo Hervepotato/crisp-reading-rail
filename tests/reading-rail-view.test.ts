@@ -26,6 +26,25 @@ function translateY(element: HTMLElement | null): number {
   return Number(match?.[1] ?? Number.NaN);
 }
 
+function pointerEvent(
+  type: string,
+  pointerId: number,
+  clientY: number,
+  options: { button?: number; isPrimary?: boolean } = {},
+): MouseEvent {
+  const event = new MouseEvent(type, {
+    bubbles: true,
+    cancelable: true,
+    button: options.button ?? 0,
+    clientY,
+  });
+  Object.defineProperties(event, {
+    pointerId: { value: pointerId },
+    isPrimary: { value: options.isPrimary ?? true },
+  });
+  return event;
+}
+
 function makeViewEnvironment(reducedMotion = false) {
   let nextFrame = 1;
   let now = 0;
@@ -363,6 +382,94 @@ describe("ReadingRailView", () => {
       .toContain("translateY(200px)");
     expect(host.querySelector<HTMLElement>(".crisp-reading-rail__progress")?.style.transform)
       .toContain("translateY(200px)");
+  });
+
+  it("centers a Crisp-style focus glow on the moving orb", () => {
+    const clock = makeViewEnvironment(true);
+    const host = document.createElement("div");
+    const view = ReadingRailView.mount(host, {
+      onHeadingSelect: vi.fn(),
+      onProgressSelect: vi.fn(),
+    }, { environment: clock.environment });
+    const track = host.querySelector<HTMLElement>(".crisp-reading-rail__track")!;
+    setMetric(track, "clientHeight", 400);
+    view.setOutline([], 12);
+    view.setProgress(0.5);
+
+    expect(host.querySelector(".crisp-reading-rail__line")).not.toBeNull();
+    expect(host.querySelector<HTMLElement>(".crisp-reading-rail__line-focus")
+      ?.style.transform).toBe("translate3d(0px, 104px, 0)");
+  });
+
+  it("drags the orb continuously with pointer capture without starting track navigation", () => {
+    const onProgressSelect = vi.fn();
+    const onProgressDrag = vi.fn();
+    const host = document.createElement("div");
+    const view = ReadingRailView.mount(host, {
+      onHeadingSelect: vi.fn(),
+      onProgressSelect,
+      onProgressDrag,
+    });
+    const track = host.querySelector<HTMLElement>(".crisp-reading-rail__track")!;
+    const orb = host.querySelector<HTMLElement>(".crisp-reading-rail__orb")!;
+    const root = host.querySelector<HTMLElement>(".crisp-reading-rail")!;
+    setMetric(track, "clientHeight", 100);
+    track.getBoundingClientRect = () => ({
+      top: 0, left: 0, right: 30, bottom: 100, width: 30, height: 100,
+      x: 0, y: 0, toJSON: () => ({}),
+    });
+    const setPointerCapture = vi.fn();
+    const releasePointerCapture = vi.fn();
+    Object.assign(orb, { setPointerCapture, releasePointerCapture });
+    view.setOutline([], 12);
+
+    orb.dispatchEvent(pointerEvent("pointerdown", 7, 20));
+    expect(setPointerCapture).toHaveBeenCalledWith(7);
+    expect(root.classList.contains("is-dragging")).toBe(true);
+    expect(onProgressDrag).toHaveBeenLastCalledWith(0.2);
+    expect(onProgressSelect).not.toHaveBeenCalled();
+
+    window.dispatchEvent(pointerEvent("pointermove", 99, 90));
+    expect(onProgressDrag).toHaveBeenCalledTimes(1);
+    window.dispatchEvent(pointerEvent("pointermove", 7, 75));
+    expect(onProgressDrag).toHaveBeenLastCalledWith(0.75);
+    expect(translateY(orb)).toBe(75);
+    view.setProgress(0.61);
+    expect(translateY(orb)).toBe(75);
+
+    window.dispatchEvent(pointerEvent("pointerup", 7, 80));
+    expect(onProgressDrag).toHaveBeenLastCalledWith(0.8);
+    expect(root.classList.contains("is-dragging")).toBe(false);
+    expect(releasePointerCapture).toHaveBeenCalledWith(7);
+  });
+
+  it("settles an active drag if the rail becomes hidden", () => {
+    const onProgressDragEnd = vi.fn();
+    const host = document.createElement("div");
+    const view = ReadingRailView.mount(host, {
+      onHeadingSelect: vi.fn(),
+      onProgressSelect: vi.fn(),
+      onProgressDrag: vi.fn(),
+      onProgressDragEnd,
+    });
+    const track = host.querySelector<HTMLElement>(".crisp-reading-rail__track")!;
+    const orb = host.querySelector<HTMLElement>(".crisp-reading-rail__orb")!;
+    setMetric(track, "clientHeight", 100);
+    track.getBoundingClientRect = () => ({
+      top: 0, left: 0, right: 30, bottom: 100, width: 30, height: 100,
+      x: 0, y: 0, toJSON: () => ({}),
+    });
+    Object.assign(orb, {
+      setPointerCapture: vi.fn(),
+      releasePointerCapture: vi.fn(),
+    });
+    view.setOutline([], 12);
+
+    orb.dispatchEvent(pointerEvent("pointerdown", 12, 36));
+    view.setVisible(false);
+
+    expect(onProgressDragEnd).toHaveBeenCalledOnce();
+    expect(onProgressDragEnd).toHaveBeenCalledWith(0.36);
   });
 
   it("does not rewrite a far tick while the wave remains out of range", () => {

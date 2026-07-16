@@ -45,6 +45,13 @@ interface ScrollNavigation {
   finalFrames: number;
 }
 
+interface ProgressSettlement {
+  progress: number;
+  lastTarget: number | null;
+  stableFrames: number;
+  finalFrames: number;
+}
+
 export interface RailControllerEnvironment {
   requestAnimationFrame(callback: FrameRequestCallback): number;
   cancelAnimationFrame(id: number): void;
@@ -117,6 +124,9 @@ export class ReadingRailController {
   private frameId: number | null = null;
   private navigationFrameId: number | null = null;
   private navigation: ScrollNavigation | null = null;
+  private progressSettlementFrameId: number | null = null;
+  private progressSettlement: ProgressSettlement | null = null;
+  private dragProgress: number | null = null;
   private refreshTimer: number | null = null;
   private pendingHeadingLine: number | null = null;
   private needsMeasurement = false;
@@ -144,6 +154,8 @@ export class ReadingRailController {
     this.view = this.createView(this.host, {
       onHeadingSelect: (entry) => this.navigateToHeading(entry),
       onProgressSelect: (progress) => this.navigateToProgress(progress),
+      onProgressDrag: (progress) => this.dragToProgress(progress),
+      onProgressDragEnd: (progress) => this.settleDraggedProgress(progress),
     }, this.appearance);
     this.scroller.addEventListener("scroll", this.handleScroll, { passive: true });
     this.scroller.addEventListener("wheel", this.handleManualNavigation, { passive: true });
@@ -218,6 +230,7 @@ export class ReadingRailController {
       this.frameId = null;
     }
     this.cancelNavigation();
+    this.cancelProgressSettlement();
     if (this.refreshTimer !== null) {
       this.environment.clearTimeout(this.refreshTimer);
       this.refreshTimer = null;
@@ -230,6 +243,7 @@ export class ReadingRailController {
     this.view = null;
     this.entries = [];
     this.pendingHeadingLine = null;
+    this.dragProgress = null;
   }
 
   private readonly handleScroll = (): void => {
@@ -238,7 +252,9 @@ export class ReadingRailController {
 
   private readonly handleManualNavigation = (): void => {
     this.pendingHeadingLine = null;
+    this.dragProgress = null;
     this.cancelNavigation();
+    this.cancelProgressSettlement();
   };
 
   private scheduleFrame(needsMeasurement: boolean): void {
@@ -277,7 +293,13 @@ export class ReadingRailController {
     if (!this.view) {
       return;
     }
-    const progress = calculateProgress(
+    if (this.dragProgress !== null) {
+      const target = this.getProgressTop(this.dragProgress);
+      if (Math.abs(this.scroller.scrollTop - target) > NAVIGATION_SETTLE_TOLERANCE) {
+        this.scroller.scrollTo({ top: target, behavior: "auto" });
+      }
+    }
+    const progress = this.dragProgress ?? calculateProgress(
       this.scroller.scrollTop,
       this.scroller.scrollHeight,
       this.scroller.clientHeight,
@@ -304,6 +326,60 @@ export class ReadingRailController {
     const safeProgress = clamp01(progress);
     this.startNavigation(() => this.getProgressTop(safeProgress));
   }
+
+  private dragToProgress(progress: number): void {
+    this.pendingHeadingLine = null;
+    this.dragProgress = clamp01(progress);
+    this.cancelNavigation();
+    this.cancelProgressSettlement();
+    this.scroller.scrollTo({
+      top: this.getProgressTop(this.dragProgress),
+      behavior: "auto",
+    });
+  }
+
+  private settleDraggedProgress(progress: number): void {
+    this.pendingHeadingLine = null;
+    this.dragProgress = null;
+    this.cancelNavigation();
+    this.cancelProgressSettlement();
+    this.progressSettlement = {
+      progress: clamp01(progress),
+      lastTarget: null,
+      stableFrames: 0,
+      finalFrames: 0,
+    };
+    this.runProgressSettlement();
+  }
+
+  private readonly runProgressSettlement = (): void => {
+    this.progressSettlementFrameId = null;
+    const settlement = this.progressSettlement;
+    if (!settlement || this.destroyed) {
+      return;
+    }
+    const target = this.getProgressTop(settlement.progress);
+    this.scroller.scrollTo({ top: target, behavior: "auto" });
+    settlement.finalFrames += 1;
+    const targetStable = settlement.lastTarget !== null
+      && Math.abs(target - settlement.lastTarget) <= NAVIGATION_SETTLE_TOLERANCE;
+    const positionSettled = Math.abs(this.scroller.scrollTop - target)
+      <= NAVIGATION_SETTLE_TOLERANCE;
+    settlement.stableFrames = targetStable && positionSettled
+      ? settlement.stableFrames + 1
+      : 0;
+    settlement.lastTarget = target;
+    if (
+      settlement.stableFrames >= NAVIGATION_STABLE_FRAMES
+      || settlement.finalFrames >= NAVIGATION_MAX_FINAL_FRAMES
+    ) {
+      this.progressSettlement = null;
+      return;
+    }
+    this.progressSettlementFrameId = this.environment.requestAnimationFrame(
+      this.runProgressSettlement,
+    );
+  };
 
   private finishPendingHeadingNavigation(): void {
     if (this.pendingHeadingLine === null) {
@@ -345,7 +421,9 @@ export class ReadingRailController {
   }
 
   private startNavigation(resolveTop: () => number): void {
+    this.dragProgress = null;
     this.cancelNavigation();
+    this.cancelProgressSettlement();
     const startTop = this.scroller.scrollTop;
     const target = this.resolveNavigationTop(resolveTop);
     if (this.environment.reducedMotion()) {
@@ -420,5 +498,13 @@ export class ReadingRailController {
       this.navigationFrameId = null;
     }
     this.navigation = null;
+  }
+
+  private cancelProgressSettlement(): void {
+    if (this.progressSettlementFrameId !== null) {
+      this.environment.cancelAnimationFrame(this.progressSettlementFrameId);
+      this.progressSettlementFrameId = null;
+    }
+    this.progressSettlement = null;
   }
 }

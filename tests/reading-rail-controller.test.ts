@@ -201,6 +201,46 @@ describe("ReadingRailController", () => {
     controller.destroy();
   });
 
+  it("cancels smooth navigation and scrolls immediately while the orb is dragged", () => {
+    const { host, scroller } = makeFixture();
+    const clock = makeEnvironment();
+    const view = makeView();
+    const controller = new ReadingRailController({
+      host,
+      scroller,
+      preview: scroller,
+      getHeadings: () => [],
+      environment: clock.environment,
+      createView: (_host, callbacks) => {
+        view.callbacks = callbacks;
+        return view;
+      },
+    });
+    controller.start();
+    clock.flushFrame();
+    view.callbacks?.onProgressSelect(0.9);
+    const navigationFrame = clock.pendingFrameId();
+
+    view.callbacks?.onProgressDrag?.(0.4);
+
+    expect(clock.cancelledFrames).toContain(navigationFrame);
+    expect(scroller.scrollTo).toHaveBeenLastCalledWith({ top: 400, behavior: "auto" });
+    view.callbacks?.onProgressDrag?.(0.65);
+    expect(scroller.scrollTo).toHaveBeenLastCalledWith({ top: 650, behavior: "auto" });
+
+    setMetric(scroller, "scrollHeight", 2800);
+    scroller.dispatchEvent(new Event("scroll"));
+    clock.flushFrame();
+    expect(scroller.scrollTo).toHaveBeenLastCalledWith({ top: 1300, behavior: "auto" });
+    setMetric(scroller, "scrollHeight", 3000);
+    view.callbacks?.onProgressDragEnd?.(0.65);
+    expect(scroller.scrollTo).toHaveBeenLastCalledWith({ top: 1430, behavior: "auto" });
+    setMetric(scroller, "scrollHeight", 3200);
+    clock.flushFrame();
+    expect(scroller.scrollTo).toHaveBeenLastCalledWith({ top: 1560, behavior: "auto" });
+    controller.destroy();
+  });
+
   it("settles long-distance progress navigation against changing scroll height", () => {
     const { host, scroller } = makeFixture();
     setMetric(scroller, "scrollHeight", 10000);

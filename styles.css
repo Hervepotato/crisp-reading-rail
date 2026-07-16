@@ -1,4 +1,7 @@
 .crisp-reading-rail {
+  --crisp-reading-accent: var(--interactive-accent);
+  --crisp-reading-muted: color-mix(in srgb, var(--text-muted) 48%, transparent);
+  --crisp-reading-line-color: var(--text-faint);
   position: absolute;
   z-index: var(--layer-cover, 5);
   top: 18px;
@@ -22,22 +25,51 @@
   cursor: pointer;
 }
 
-.crisp-reading-rail .crisp-reading-rail__track::before {
+.crisp-reading-rail .crisp-reading-rail__line {
+  position: absolute;
+  inset: 0 7px 0 auto;
+  width: 1px;
+  overflow: hidden;
+  contain: paint;
+  pointer-events: none;
+}
+
+.crisp-reading-rail .crisp-reading-rail__line::before {
   content: "";
   position: absolute;
+  inset: 0;
+  background: color-mix(
+    in srgb,
+    var(--crisp-reading-line-color) 28%,
+    transparent
+  );
+}
+
+.crisp-reading-rail .crisp-reading-rail__line-focus {
+  position: absolute;
   top: 0;
-  right: 7px;
-  bottom: 0;
+  left: 0;
   width: 1px;
-  background: var(--text-faint);
-  opacity: 0.45;
+  height: 192px;
+  background: linear-gradient(
+    to bottom,
+    transparent 0%,
+    color-mix(in srgb, var(--crisp-reading-line-color) 10%, transparent) 12%,
+    color-mix(in srgb, var(--crisp-reading-line-color) 34%, transparent) 28%,
+    color-mix(in srgb, var(--crisp-reading-line-color) 82%, transparent) 50%,
+    color-mix(in srgb, var(--crisp-reading-line-color) 34%, transparent) 72%,
+    color-mix(in srgb, var(--crisp-reading-line-color) 10%, transparent) 88%,
+    transparent 100%
+  );
+  will-change: transform;
+  pointer-events: none;
 }
 
 .crisp-reading-rail .crisp-reading-rail__ticks {
   position: absolute;
-  inset: 0 5px 0 auto;
+  inset: 0 7px 0 auto;
   display: flex;
-  width: 8px;
+  width: 14px;
   flex-direction: column;
   justify-content: space-between;
   pointer-events: none;
@@ -46,20 +78,21 @@
 .crisp-reading-rail .crisp-reading-rail__tick {
   --crisp-reading-tick-scale: 1;
   display: block;
-  width: 5px;
+  width: 14px;
   height: 1px;
   margin-left: auto;
-  background: var(--text-muted);
-  opacity: 0.58;
+  border-radius: 999px;
+  background: var(--crisp-reading-muted);
+  opacity: 0.28;
   transform: translateX(var(--crisp-reading-wave-x, 0px))
     scaleX(var(--crisp-reading-tick-scale));
   transform-origin: right center;
-  transition: opacity 120ms ease;
+  transition: opacity 110ms cubic-bezier(0.23, 1, 0.32, 1);
 }
 
 .crisp-reading-rail .crisp-reading-rail__tick.is-read {
-  --crisp-reading-tick-scale: 0.6;
-  opacity: 0.22;
+  --crisp-reading-tick-scale: 0.64;
+  opacity: 0.14;
 }
 
 .crisp-reading-rail .crisp-reading-rail__heading-ticks {
@@ -71,27 +104,30 @@
 .crisp-reading-rail .crisp-reading-rail__heading-tick {
   position: absolute;
   top: calc(var(--crisp-reading-heading-progress) * 100%);
-  right: 4px;
+  right: 7px;
   display: block;
-  width: 12px;
-  height: 2px;
-  background: var(--text-normal);
-  opacity: 0.72;
+  width: 16px;
+  height: 1px;
+  border-radius: 999px;
+  background: var(--crisp-reading-muted);
+  opacity: 0.56;
   transform: translate(var(--crisp-reading-wave-x, 0px), -50%);
-  transition: background-color 120ms ease, opacity 120ms ease;
+  transform-origin: right center;
+  transition: opacity 110ms cubic-bezier(0.23, 1, 0.32, 1);
 }
 
 .crisp-reading-rail .crisp-reading-rail__heading-tick[data-level="2"] {
-  width: 16px;
+  width: 24px;
 }
 
 .crisp-reading-rail .crisp-reading-rail__heading-tick[data-level="3"] {
-  width: 14px;
+  width: 20px;
 }
 
 .crisp-reading-rail .crisp-reading-rail__heading-tick.is-active {
-  background: var(--interactive-accent);
-  opacity: 1;
+  height: 2px;
+  background: var(--crisp-reading-accent);
+  opacity: 0.9;
 }
 
 .crisp-reading-rail .crisp-reading-rail__active,
@@ -104,21 +140,32 @@
 }
 
 .crisp-reading-rail .crisp-reading-rail__active {
-  right: 4px;
-  width: 12px;
-  height: 1px;
-  background: var(--interactive-accent);
+  right: 7px;
+  width: 28px;
+  height: 2px;
+  border-radius: 999px;
+  background: var(--crisp-reading-accent);
+  opacity: 0.58;
 }
 
 .crisp-reading-rail .crisp-reading-rail__orb {
-  right: 4px;
+  right: 7px;
   display: grid;
-  width: 9px;
-  height: 9px;
+  width: 14px;
+  height: 14px;
   place-items: center;
-  border: 1px solid var(--background-primary);
+  border: 1px solid color-mix(in srgb, var(--background-primary) 80%, transparent);
   border-radius: 50%;
-  background: var(--interactive-accent);
+  background:
+    radial-gradient(circle at 35% 30%, rgba(255, 255, 255, 0.85), transparent 28%),
+    var(--crisp-reading-accent);
+  box-shadow:
+    0 0 0 4px color-mix(in srgb, var(--interactive-accent) 15%, transparent),
+    0 8px 18px rgba(0, 0, 0, 0.18);
+  cursor: grab;
+  pointer-events: auto;
+  touch-action: none;
+  user-select: none;
 }
 
 .crisp-reading-rail .crisp-reading-rail__orb:not([data-orb-style="default"]) {
@@ -126,6 +173,18 @@
   height: 18px;
   border: 0;
   background: transparent;
+  box-shadow: none;
+}
+
+.crisp-reading-rail .crisp-reading-rail__orb[data-orb-style="soccer"],
+.crisp-reading-rail .crisp-reading-rail__orb[data-orb-style="basketball"],
+.crisp-reading-rail .crisp-reading-rail__orb[data-orb-style="redball"],
+.crisp-reading-rail .crisp-reading-rail__orb[data-orb-style="tennis"] {
+  background: #fff;
+  overflow: hidden;
+  box-shadow:
+    0 0 0 3px color-mix(in srgb, var(--background-primary) 65%, transparent),
+    0 7px 16px rgba(0, 0, 0, 0.2);
 }
 
 .crisp-reading-rail .crisp-reading-rail__orb[data-orb-style="clown"],
@@ -139,6 +198,8 @@
 .crisp-reading-rail .crisp-reading-rail__orb[data-orb-style="taiga"] {
   width: 22px;
   height: 22px;
+  overflow: visible;
+  box-shadow: none;
 }
 
 .crisp-reading-rail .crisp-reading-rail__orb-media {
@@ -149,6 +210,24 @@
   transform-box: border-box;
   will-change: transform;
   pointer-events: none;
+  scale: 1;
+  transition: scale 110ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.crisp-reading-rail .crisp-reading-rail__orb.is-dragging {
+  cursor: grabbing;
+  box-shadow:
+    0 0 0 5px color-mix(in srgb, var(--interactive-accent) 18%, transparent),
+    0 8px 20px rgba(0, 0, 0, 0.22);
+}
+
+.crisp-reading-rail .crisp-reading-rail__orb.is-dragging
+  .crisp-reading-rail__orb-media {
+  scale: 0.97;
+}
+
+.crisp-reading-rail .crisp-reading-rail__orb:not([data-orb-style="default"]).is-dragging {
+  box-shadow: none;
 }
 
 .crisp-reading-rail .crisp-reading-rail__orb-media > svg,
@@ -171,7 +250,7 @@
 }
 
 .crisp-reading-rail .crisp-reading-rail__progress {
-  right: 22px;
+  right: 38px;
   padding: 0;
   border: 0;
   border-radius: 0;
@@ -186,7 +265,7 @@
 
 .crisp-reading-rail .crisp-reading-rail__labels {
   position: absolute;
-  inset: 0 24px 0 auto;
+  inset: 0 38px 0 auto;
   width: min(240px, 30vw);
   pointer-events: none;
 }
@@ -239,9 +318,9 @@
   outline-offset: 2px;
 }
 
-.crisp-reading-rail .crisp-reading-rail__track:focus-visible::before {
-  background: var(--interactive-accent);
-  opacity: 0.8;
+.crisp-reading-rail .crisp-reading-rail__track:focus-visible
+  .crisp-reading-rail__line::before {
+  background: color-mix(in srgb, var(--crisp-reading-accent) 72%, transparent);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -249,5 +328,15 @@
   .crisp-reading-rail .crisp-reading-rail__heading-tick,
   .crisp-reading-rail .crisp-reading-rail__label {
     transition: none;
+  }
+
+  .crisp-reading-rail .crisp-reading-rail__orb,
+  .crisp-reading-rail .crisp-reading-rail__orb-media {
+    transition: none;
+  }
+
+  .crisp-reading-rail .crisp-reading-rail__orb.is-dragging
+    .crisp-reading-rail__orb-media {
+    scale: 1;
   }
 }

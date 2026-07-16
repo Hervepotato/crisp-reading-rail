@@ -34,10 +34,15 @@ export function buildOutlineEntries(
       if (target) {
         renderedIndex += 1;
       }
-      const progress = clamp01(source.sourceLine / lastSourceLine);
+      const estimatedProgress = clamp01(source.sourceLine / lastSourceLine);
+      const progress = target && maxScroll > 0
+        ? clamp01((candidate.documentY - contentTop) / maxScroll)
+        : estimatedProgress;
       return {
         ...source,
-        documentY: contentTop + progress * maxScroll,
+        documentY: target
+          ? candidate.documentY
+          : contentTop + progress * maxScroll,
         progress,
         labelY: 0,
         target,

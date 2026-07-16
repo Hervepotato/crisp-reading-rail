@@ -36,7 +36,7 @@ describe("outline model", () => {
     ]);
   });
 
-  it("keeps the full outline when Obsidian virtualizes off-screen headings", () => {
+  it("uses real positions for rendered headings while estimating virtualized headings", () => {
     const detailTarget = {} as HTMLElement;
     const rendered = [
       { text: "Detail", level: 3, documentY: 260, target: detailTarget },
@@ -48,7 +48,7 @@ describe("outline model", () => {
       hasTarget: entry.target !== null,
     }))).toEqual([
       { text: "First", progress: 0.25, hasTarget: false },
-      { text: "Detail", progress: 0.75, hasTarget: true },
+      { text: "Detail", progress: 0.16, hasTarget: true },
     ]);
   });
 
