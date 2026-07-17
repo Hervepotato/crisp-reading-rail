@@ -105,5 +105,19 @@ class CrispReadingRailSettingTab extends PluginSettingTab {
             await this.plugin.saveSettings();
           });
       });
+
+    new Setting(containerEl)
+      .setName("Navigation sound")
+      .setDesc(
+        "Play very soft feedback only when directly using the reading rail. Normal reading stays silent.",
+      )
+      .addToggle((toggle) => {
+        toggle
+          .setValue(this.plugin.settings.soundEnabled)
+          .onChange(async (value) => {
+            this.plugin.settings.soundEnabled = value;
+            await this.plugin.saveSettings();
+          });
+      });
   }
 }
