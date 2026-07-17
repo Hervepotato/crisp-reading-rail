@@ -29,9 +29,10 @@ interface MutationObserverHandle {
 
 export interface RailViewCallbacks {
   onHeadingSelect(entry: OutlineEntry): void;
-  onProgressSelect(progress: number): void;
+  onProgressSelect(progress: number, audible?: boolean): void;
   onProgressDrag?(progress: number): void;
   onProgressDragEnd?(progress: number): void;
+  onProgressDragCancel?(progress: number): void;
 }
 
 export interface RailAppearanceProvider {
@@ -319,7 +320,7 @@ export class ReadingRailView {
       const dragProgress = this.dragPointerId === null ? null : this.currentProgress;
       this.finishDrag();
       if (dragProgress !== null) {
-        this.callbacks.onProgressDragEnd?.(dragProgress);
+        this.callbacks.onProgressDragCancel?.(dragProgress);
       }
       this.cancelAnimation();
       this.positionInitialized = false;
@@ -636,6 +637,7 @@ export class ReadingRailView {
     event.preventDefault();
     this.callbacks.onProgressSelect(
       progressFromPointer(event.clientY, bounds.top, bounds.height),
+      true,
     );
   };
 
@@ -688,18 +690,23 @@ export class ReadingRailView {
     }
     event.preventDefault();
     event.stopPropagation();
-    const progress = event.type === "pointercancel"
+    const cancelled = event.type === "pointercancel";
+    const progress = cancelled
       ? this.currentProgress
       : this.updateDragProgress(event.clientY) ?? this.currentProgress;
     this.finishDrag();
-    this.callbacks.onProgressDragEnd?.(progress);
+    if (cancelled) {
+      this.callbacks.onProgressDragCancel?.(progress);
+    } else {
+      this.callbacks.onProgressDragEnd?.(progress);
+    }
     this.scheduleCollapse();
   };
 
   private readonly handleDragBlur = (): void => {
     const progress = this.currentProgress;
     this.finishDrag();
-    this.callbacks.onProgressDragEnd?.(progress);
+    this.callbacks.onProgressDragCancel?.(progress);
   };
 
   private updateDragProgress(clientY: number): number | null {
@@ -759,7 +766,7 @@ export class ReadingRailView {
       return;
     }
     event.preventDefault();
-    this.callbacks.onProgressSelect(next);
+    this.callbacks.onProgressSelect(next, false);
   };
 
   private updateReadTicks(): void {

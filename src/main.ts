@@ -1,4 +1,8 @@
 import { Plugin, PluginSettingTab, Setting } from "obsidian";
+import {
+  ReadingRailAudio,
+  createReadingRailAudioEnvironment,
+} from "./audio-feedback";
 import { ORB_STYLE_OPTIONS, normalizeOrbStyle } from "./orb-styles";
 import { ReadingPaneRegistry } from "./pane-registry";
 import {
@@ -10,11 +14,19 @@ import {
 export default class CrispReadingRailPlugin extends Plugin {
   settings: CrispReadingRailSettings = { ...DEFAULT_SETTINGS };
   private registry: ReadingPaneRegistry | null = null;
+  private audio: ReadingRailAudio | null = null;
   private reconcileFrame: number | null = null;
   private unloaded = false;
 
   async onload(): Promise<void> {
     this.settings = normalizeSettings(await this.loadData());
+    const window = this.app.workspace.containerEl.ownerDocument.defaultView;
+    if (window) {
+      this.audio = new ReadingRailAudio(
+        () => this.settings.soundEnabled,
+        createReadingRailAudioEnvironment(window),
+      );
+    }
     this.addSettingTab(new CrispReadingRailSettingTab(this));
     this.app.workspace.onLayoutReady(() => {
       if (this.unloaded) {
@@ -25,6 +37,7 @@ export default class CrispReadingRailPlugin extends Plugin {
           getOrbStyle: () => this.settings.orbStyle,
           getAssetUrl: (path) => this.getAssetUrl(path),
         },
+        sound: this.audio ?? undefined,
       });
       this.registry.reconcile();
 
@@ -49,6 +62,13 @@ export default class CrispReadingRailPlugin extends Plugin {
     }
     this.registry?.destroy();
     this.registry = null;
+    const audio = this.audio;
+    this.audio = null;
+    if (audio) {
+      void audio.destroy().catch((error) => {
+        console.debug("Crisp Reading Rail audio cleanup failed", error);
+      });
+    }
   }
 
   async saveSettings(): Promise<void> {

@@ -241,6 +241,82 @@ describe("ReadingRailController", () => {
     controller.destroy();
   });
 
+  it("plays sparse feedback only for direct rail interaction", () => {
+    const { host, scroller } = makeFixture();
+    const first = document.createElement("h2");
+    first.textContent = "First";
+    first.getBoundingClientRect = () => ({
+      top: 200 - scroller.scrollTop,
+      left: 0,
+      right: 0,
+      bottom: 220 - scroller.scrollTop,
+      width: 0,
+      height: 20,
+      x: 0,
+      y: 200 - scroller.scrollTop,
+      toJSON: () => ({}),
+    });
+    const second = document.createElement("h2");
+    second.textContent = "Second";
+    second.getBoundingClientRect = () => ({
+      top: 700 - scroller.scrollTop,
+      left: 0,
+      right: 0,
+      bottom: 720 - scroller.scrollTop,
+      width: 0,
+      height: 20,
+      x: 0,
+      y: 700 - scroller.scrollTop,
+      toJSON: () => ({}),
+    });
+    scroller.append(first, second);
+    const clock = makeEnvironment();
+    const view = makeView();
+    const sound = { tick: vi.fn(), settle: vi.fn() };
+    const controller = new ReadingRailController({
+      host,
+      scroller,
+      preview: scroller,
+      getHeadings: () => [
+        { text: "First", level: 2, sourceLine: 10 },
+        { text: "Second", level: 2, sourceLine: 20 },
+      ],
+      getLineCount: () => 30,
+      sound,
+      environment: clock.environment,
+      createView: (_host, callbacks) => {
+        view.callbacks = callbacks;
+        return view;
+      },
+    });
+    controller.start();
+    clock.flushFrame();
+
+    scroller.dispatchEvent(new Event("scroll"));
+    clock.flushFrame();
+    expect(sound.tick).not.toHaveBeenCalled();
+    expect(sound.settle).not.toHaveBeenCalled();
+
+    view.callbacks?.onProgressSelect(0.4, false);
+    expect(sound.settle).not.toHaveBeenCalled();
+
+    view.callbacks?.onProgressSelect(0.5, true);
+    expect(sound.settle).toHaveBeenCalledOnce();
+
+    view.callbacks?.onProgressDrag?.(0.1);
+    view.callbacks?.onProgressDrag?.(0.3);
+    view.callbacks?.onProgressDrag?.(0.8);
+    expect(sound.tick).toHaveBeenCalledTimes(2);
+
+    view.callbacks?.onProgressDragCancel?.(0.8);
+    expect(sound.settle).toHaveBeenCalledOnce();
+
+    view.callbacks?.onProgressDrag?.(0.3);
+    view.callbacks?.onProgressDragEnd?.(0.3);
+    expect(sound.settle).toHaveBeenCalledTimes(2);
+    controller.destroy();
+  });
+
   it("settles long-distance progress navigation against changing scroll height", () => {
     const { host, scroller } = makeFixture();
     setMetric(scroller, "scrollHeight", 10000);

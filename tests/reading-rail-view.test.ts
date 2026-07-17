@@ -214,9 +214,10 @@ describe("ReadingRailView", () => {
       clientY: 20,
     }));
     expect(document.activeElement).toBe(slider);
+    expect(onProgressSelect).toHaveBeenLastCalledWith(0.2, true);
 
     slider.dispatchEvent(new KeyboardEvent("keydown", { key: "PageDown", bubbles: true }));
-    expect(onProgressSelect).toHaveBeenLastCalledWith(0.6);
+    expect(onProgressSelect).toHaveBeenLastCalledWith(0.6, false);
 
     slider.dispatchEvent(new KeyboardEvent("keydown", { key: "x", bubbles: true }));
     expect(onProgressSelect).toHaveBeenCalledTimes(2);
@@ -404,11 +405,13 @@ describe("ReadingRailView", () => {
   it("drags the orb continuously with pointer capture without starting track navigation", () => {
     const onProgressSelect = vi.fn();
     const onProgressDrag = vi.fn();
+    const onProgressDragEnd = vi.fn();
     const host = document.createElement("div");
     const view = ReadingRailView.mount(host, {
       onHeadingSelect: vi.fn(),
       onProgressSelect,
       onProgressDrag,
+      onProgressDragEnd,
     });
     const track = host.querySelector<HTMLElement>(".crisp-reading-rail__track")!;
     const orb = host.querySelector<HTMLElement>(".crisp-reading-rail__orb")!;
@@ -441,16 +444,19 @@ describe("ReadingRailView", () => {
     expect(onProgressDrag).toHaveBeenLastCalledWith(0.8);
     expect(root.classList.contains("is-dragging")).toBe(false);
     expect(releasePointerCapture).toHaveBeenCalledWith(7);
+    expect(onProgressDragEnd).toHaveBeenCalledWith(0.8);
   });
 
-  it("settles an active drag if the rail becomes hidden", () => {
+  it("cancels an active drag without audible completion if the rail becomes hidden", () => {
     const onProgressDragEnd = vi.fn();
+    const onProgressDragCancel = vi.fn();
     const host = document.createElement("div");
     const view = ReadingRailView.mount(host, {
       onHeadingSelect: vi.fn(),
       onProgressSelect: vi.fn(),
       onProgressDrag: vi.fn(),
       onProgressDragEnd,
+      onProgressDragCancel,
     });
     const track = host.querySelector<HTMLElement>(".crisp-reading-rail__track")!;
     const orb = host.querySelector<HTMLElement>(".crisp-reading-rail__orb")!;
@@ -468,8 +474,44 @@ describe("ReadingRailView", () => {
     orb.dispatchEvent(pointerEvent("pointerdown", 12, 36));
     view.setVisible(false);
 
-    expect(onProgressDragEnd).toHaveBeenCalledOnce();
-    expect(onProgressDragEnd).toHaveBeenCalledWith(0.36);
+    expect(onProgressDragEnd).not.toHaveBeenCalled();
+    expect(onProgressDragCancel).toHaveBeenCalledOnce();
+    expect(onProgressDragCancel).toHaveBeenCalledWith(0.36);
+  });
+
+  it("treats pointer cancellation and window blur as silent drag cancellation", () => {
+    const onProgressDragEnd = vi.fn();
+    const onProgressDragCancel = vi.fn();
+    const host = document.createElement("div");
+    const view = ReadingRailView.mount(host, {
+      onHeadingSelect: vi.fn(),
+      onProgressSelect: vi.fn(),
+      onProgressDrag: vi.fn(),
+      onProgressDragEnd,
+      onProgressDragCancel,
+    });
+    const track = host.querySelector<HTMLElement>(".crisp-reading-rail__track")!;
+    const orb = host.querySelector<HTMLElement>(".crisp-reading-rail__orb")!;
+    setMetric(track, "clientHeight", 100);
+    track.getBoundingClientRect = () => ({
+      top: 0, left: 0, right: 30, bottom: 100, width: 30, height: 100,
+      x: 0, y: 0, toJSON: () => ({}),
+    });
+    Object.assign(orb, {
+      setPointerCapture: vi.fn(),
+      releasePointerCapture: vi.fn(),
+    });
+    view.setOutline([], 12);
+
+    orb.dispatchEvent(pointerEvent("pointerdown", 13, 42));
+    window.dispatchEvent(pointerEvent("pointercancel", 13, 42));
+    orb.dispatchEvent(pointerEvent("pointerdown", 14, 58));
+    window.dispatchEvent(new Event("blur"));
+
+    expect(onProgressDragEnd).not.toHaveBeenCalled();
+    expect(onProgressDragCancel).toHaveBeenNthCalledWith(1, 0.42);
+    expect(onProgressDragCancel).toHaveBeenNthCalledWith(2, 0.58);
+    view.destroy();
   });
 
   it("does not rewrite a far tick while the wave remains out of range", () => {

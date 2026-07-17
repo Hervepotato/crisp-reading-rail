@@ -1,4 +1,5 @@
 import { collectRenderedHeadings } from "./heading-source";
+import type { RailSoundProvider } from "./audio-feedback";
 import {
   activeHeadingIndex,
   buildOutlineEntries,
@@ -79,6 +80,7 @@ export interface ReadingRailControllerOptions {
   getHeadings(): readonly OutlineHeading[];
   getLineCount?(): number;
   appearance?: RailAppearanceProvider;
+  sound?: RailSoundProvider;
   environment?: RailControllerEnvironment;
   createView?(
     host: HTMLElement,
@@ -112,6 +114,7 @@ export class ReadingRailController {
   private readonly getLineCount: () => number;
   private readonly environment: RailControllerEnvironment;
   private readonly appearance?: RailAppearanceProvider;
+  private readonly sound?: RailSoundProvider;
   private readonly createView: (
     host: HTMLElement,
     callbacks: RailViewCallbacks,
@@ -127,6 +130,7 @@ export class ReadingRailController {
   private progressSettlementFrameId: number | null = null;
   private progressSettlement: ProgressSettlement | null = null;
   private dragProgress: number | null = null;
+  private lastDragHeadingIndex: number | null = null;
   private refreshTimer: number | null = null;
   private pendingHeadingLine: number | null = null;
   private needsMeasurement = false;
@@ -140,6 +144,7 @@ export class ReadingRailController {
     this.getHeadings = options.getHeadings;
     this.getLineCount = options.getLineCount ?? (() => 0);
     this.appearance = options.appearance;
+    this.sound = options.sound;
     this.environment = options.environment ?? createDefaultEnvironment(options.host);
     this.createView = options.createView ?? ((host, callbacks, appearance) => (
       ReadingRailView.mount(host, callbacks, { appearance })
@@ -153,9 +158,10 @@ export class ReadingRailController {
     this.started = true;
     this.view = this.createView(this.host, {
       onHeadingSelect: (entry) => this.navigateToHeading(entry),
-      onProgressSelect: (progress) => this.navigateToProgress(progress),
+      onProgressSelect: (progress, audible) => this.navigateToProgress(progress, audible),
       onProgressDrag: (progress) => this.dragToProgress(progress),
       onProgressDragEnd: (progress) => this.settleDraggedProgress(progress),
+      onProgressDragCancel: (progress) => this.cancelDraggedProgress(progress),
     }, this.appearance);
     this.scroller.addEventListener("scroll", this.handleScroll, { passive: true });
     this.scroller.addEventListener("wheel", this.handleManualNavigation, { passive: true });
@@ -244,6 +250,7 @@ export class ReadingRailController {
     this.entries = [];
     this.pendingHeadingLine = null;
     this.dragProgress = null;
+    this.lastDragHeadingIndex = null;
   }
 
   private readonly handleScroll = (): void => {
@@ -253,6 +260,7 @@ export class ReadingRailController {
   private readonly handleManualNavigation = (): void => {
     this.pendingHeadingLine = null;
     this.dragProgress = null;
+    this.lastDragHeadingIndex = null;
     this.cancelNavigation();
     this.cancelProgressSettlement();
   };
@@ -315,21 +323,33 @@ export class ReadingRailController {
   private navigateToHeading(entry: OutlineEntry): void {
     const fallbackProgress = clamp01(entry.progress);
     this.pendingHeadingLine = entry.target?.isConnected ? null : entry.sourceLine;
+    this.sound?.settle();
     this.startNavigation(() => this.getHeadingNavigationTop(
       entry.sourceLine,
       fallbackProgress,
     ));
   }
 
-  private navigateToProgress(progress: number): void {
+  private navigateToProgress(progress: number, audible = false): void {
     this.pendingHeadingLine = null;
     const safeProgress = clamp01(progress);
+    if (audible) {
+      this.sound?.settle();
+    }
     this.startNavigation(() => this.getProgressTop(safeProgress));
   }
 
   private dragToProgress(progress: number): void {
     this.pendingHeadingLine = null;
     this.dragProgress = clamp01(progress);
+    const headingIndex = this.headingIndexAtProgress(this.dragProgress);
+    if (
+      this.lastDragHeadingIndex !== null
+      && headingIndex !== this.lastDragHeadingIndex
+    ) {
+      this.sound?.tick();
+    }
+    this.lastDragHeadingIndex = headingIndex;
     this.cancelNavigation();
     this.cancelProgressSettlement();
     this.scroller.scrollTo({
@@ -339,10 +359,22 @@ export class ReadingRailController {
   }
 
   private settleDraggedProgress(progress: number): void {
+    this.finishDraggedProgress(progress, true);
+  }
+
+  private cancelDraggedProgress(progress: number): void {
+    this.finishDraggedProgress(progress, false);
+  }
+
+  private finishDraggedProgress(progress: number, audible: boolean): void {
     this.pendingHeadingLine = null;
     this.dragProgress = null;
+    this.lastDragHeadingIndex = null;
     this.cancelNavigation();
     this.cancelProgressSettlement();
+    if (audible) {
+      this.sound?.settle();
+    }
     this.progressSettlement = {
       progress: clamp01(progress),
       lastTarget: null,
@@ -350,6 +382,17 @@ export class ReadingRailController {
       finalFrames: 0,
     };
     this.runProgressSettlement();
+  }
+
+  private headingIndexAtProgress(progress: number): number {
+    let active = -1;
+    for (let index = 0; index < this.entries.length; index += 1) {
+      if (this.entries[index].progress > progress) {
+        break;
+      }
+      active = index;
+    }
+    return active;
   }
 
   private readonly runProgressSettlement = (): void => {
@@ -422,6 +465,7 @@ export class ReadingRailController {
 
   private startNavigation(resolveTop: () => number): void {
     this.dragProgress = null;
+    this.lastDragHeadingIndex = null;
     this.cancelNavigation();
     this.cancelProgressSettlement();
     const startTop = this.scroller.scrollTop;

@@ -1,4 +1,5 @@
 import { MarkdownView } from "obsidian";
+import type { RailSoundProvider } from "./audio-feedback";
 import { ReadingRailController } from "./reading-rail-controller";
 import type { ReadingRailControllerOptions } from "./reading-rail-controller";
 import type { RailAppearanceProvider } from "./reading-rail-view";
@@ -31,6 +32,7 @@ interface PaneElements {
 
 interface RegistryOptions {
   appearance?: RailAppearanceProvider;
+  sound?: RailSoundProvider;
   isMarkdownView?(view: View): view is MarkdownView;
   resolveElements?(view: MarkdownView): PaneElements | null;
   createController?(options: ReadingRailControllerOptions): ControllerLike;
@@ -75,6 +77,7 @@ function defaultResolveElements(view: MarkdownView): PaneElements | null {
 export class ReadingPaneRegistry {
   private readonly context: RegistryContext;
   private readonly appearance?: RailAppearanceProvider;
+  private readonly sound?: RailSoundProvider;
   private readonly isMarkdownView: (view: View) => view is MarkdownView;
   private readonly resolveElements: (view: MarkdownView) => PaneElements | null;
   private readonly createController: (options: ReadingRailControllerOptions) => ControllerLike;
@@ -84,6 +87,7 @@ export class ReadingPaneRegistry {
   constructor(context: RegistryContext, options: RegistryOptions = {}) {
     this.context = context;
     this.appearance = options.appearance;
+    this.sound = options.sound;
     this.isMarkdownView = options.isMarkdownView ?? (
       (view: View): view is MarkdownView => view instanceof MarkdownView
     );
@@ -126,6 +130,7 @@ export class ReadingPaneRegistry {
       const controller = this.createController({
         ...elements,
         appearance: this.appearance,
+        sound: this.sound,
         getHeadings: () => this.getOutlineHeadings(view.file),
         getLineCount: () => view.getViewData().split(/\r?\n/).length,
       });

@@ -163,6 +163,7 @@ describe("ReadingPaneRegistry", () => {
       getOrbStyle: () => "gear" as const,
       getAssetUrl: (path: string) => `app://reading/${path}`,
     };
+    const sound = { tick: vi.fn(), settle: vi.fn() };
     const factory = vi.fn()
       .mockReturnValueOnce(controllers[0])
       .mockReturnValueOnce(controllers[1]);
@@ -173,6 +174,7 @@ describe("ReadingPaneRegistry", () => {
       },
       {
         appearance,
+        sound,
         isMarkdownView: (view: View): view is MarkdownView => "getMode" in view,
         resolveElements: (view) => ({
           host: (view as unknown as { host: HTMLElement }).host
@@ -186,7 +188,7 @@ describe("ReadingPaneRegistry", () => {
 
     registry.reconcile();
     expect(factory).toHaveBeenCalledTimes(2);
-    expect(factory.mock.calls[0][0]).toEqual(expect.objectContaining({ appearance }));
+    expect(factory.mock.calls[0][0]).toEqual(expect.objectContaining({ appearance, sound }));
 
     registry.refreshAppearance();
     expect(controllers[0].refreshAppearance).toHaveBeenCalledTimes(1);
