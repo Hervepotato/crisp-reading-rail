@@ -38,4 +38,13 @@ describe("Crisp Reading Rail styles", () => {
     );
     expect(css).not.toContain("transition: all");
   });
+
+  it("keeps label motion responsive without sticky touch hover", () => {
+    expect(css).not.toContain(
+      ".crisp-reading-rail:hover .crisp-reading-rail__label",
+    );
+    expect(css).toMatch(
+      /\.crisp-reading-rail \.crisp-reading-rail__label\s*{[\s\S]*?transition:\s*opacity 120ms cubic-bezier\(0\.23, 1, 0\.32, 1\),\s*transform 120ms cubic-bezier\(0\.23, 1, 0\.32, 1\);/,
+    );
+  });
 });

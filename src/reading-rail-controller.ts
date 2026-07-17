@@ -157,8 +157,12 @@ export class ReadingRailController {
     }
     this.started = true;
     this.view = this.createView(this.host, {
-      onHeadingSelect: (entry) => this.navigateToHeading(entry),
-      onProgressSelect: (progress, audible) => this.navigateToProgress(progress, audible),
+      onHeadingSelect: (entry, audible, animated) => (
+        this.navigateToHeading(entry, audible, animated)
+      ),
+      onProgressSelect: (progress, audible, animated) => (
+        this.navigateToProgress(progress, audible, animated)
+      ),
       onProgressDrag: (progress) => this.dragToProgress(progress),
       onProgressDragEnd: (progress) => this.settleDraggedProgress(progress),
       onProgressDragCancel: (progress) => this.cancelDraggedProgress(progress),
@@ -320,23 +324,33 @@ export class ReadingRailController {
     ));
   }
 
-  private navigateToHeading(entry: OutlineEntry): void {
+  private navigateToHeading(
+    entry: OutlineEntry,
+    audible = true,
+    animated = true,
+  ): void {
     const fallbackProgress = clamp01(entry.progress);
     this.pendingHeadingLine = entry.target?.isConnected ? null : entry.sourceLine;
-    this.sound?.settle();
+    if (audible) {
+      this.sound?.settle();
+    }
     this.startNavigation(() => this.getHeadingNavigationTop(
       entry.sourceLine,
       fallbackProgress,
-    ));
+    ), animated);
   }
 
-  private navigateToProgress(progress: number, audible = false): void {
+  private navigateToProgress(
+    progress: number,
+    audible = false,
+    animated = true,
+  ): void {
     this.pendingHeadingLine = null;
     const safeProgress = clamp01(progress);
     if (audible) {
       this.sound?.settle();
     }
-    this.startNavigation(() => this.getProgressTop(safeProgress));
+    this.startNavigation(() => this.getProgressTop(safeProgress), animated);
   }
 
   private dragToProgress(progress: number): void {
@@ -463,14 +477,14 @@ export class ReadingRailController {
     return this.getProgressTop(fallbackProgress);
   }
 
-  private startNavigation(resolveTop: () => number): void {
+  private startNavigation(resolveTop: () => number, animated = true): void {
     this.dragProgress = null;
     this.lastDragHeadingIndex = null;
     this.cancelNavigation();
     this.cancelProgressSettlement();
     const startTop = this.scroller.scrollTop;
     const target = this.resolveNavigationTop(resolveTop);
-    if (this.environment.reducedMotion()) {
+    if (!animated || this.environment.reducedMotion()) {
       this.scroller.scrollTo({ top: target, behavior: "auto" });
       return;
     }

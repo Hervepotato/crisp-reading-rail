@@ -201,6 +201,35 @@ describe("ReadingRailController", () => {
     controller.destroy();
   });
 
+  it("runs keyboard navigation immediately without scheduling smooth frames", () => {
+    const { host, scroller } = makeFixture();
+    const clock = makeEnvironment();
+    const view = makeView();
+    const controller = new ReadingRailController({
+      host,
+      scroller,
+      preview: scroller,
+      getHeadings: () => [],
+      environment: clock.environment,
+      createView: (_host, callbacks) => {
+        view.callbacks = callbacks;
+        return view;
+      },
+    });
+    controller.start();
+    clock.flushFrame();
+    const frameRequests = clock.frameRequests;
+
+    view.callbacks?.onProgressSelect(0.5, false, false);
+
+    expect(scroller.scrollTo).toHaveBeenLastCalledWith({
+      top: 500,
+      behavior: "auto",
+    });
+    expect(clock.frameRequests).toBe(frameRequests);
+    controller.destroy();
+  });
+
   it("cancels smooth navigation and scrolls immediately while the orb is dragged", () => {
     const { host, scroller } = makeFixture();
     const clock = makeEnvironment();
@@ -295,6 +324,10 @@ describe("ReadingRailController", () => {
     scroller.dispatchEvent(new Event("scroll"));
     clock.flushFrame();
     expect(sound.tick).not.toHaveBeenCalled();
+    expect(sound.settle).not.toHaveBeenCalled();
+
+    const outline = vi.mocked(view.setOutline).mock.calls[0][0];
+    view.callbacks?.onHeadingSelect(outline[0], false, false);
     expect(sound.settle).not.toHaveBeenCalled();
 
     view.callbacks?.onProgressSelect(0.4, false);

@@ -179,10 +179,14 @@ describe("ReadingRailView", () => {
       "--crisp-reading-heading-progress",
     )).toBe("0.6");
     firstLabel?.click();
-    expect(onHeadingSelect).toHaveBeenCalledWith(expect.objectContaining({
-      target: secondTarget,
-      progress: 0.6,
-    }));
+    expect(onHeadingSelect).toHaveBeenCalledWith(
+      expect.objectContaining({
+        target: secondTarget,
+        progress: 0.6,
+      }),
+      false,
+      false,
+    );
   });
 
   it("routes label, pointer, and focused keyboard navigation locally", () => {
@@ -194,7 +198,11 @@ describe("ReadingRailView", () => {
     view.setProgress(0.5);
 
     host.querySelector<HTMLButtonElement>(".crisp-reading-rail__label")?.click();
-    expect(onHeadingSelect).toHaveBeenCalledWith(expect.objectContaining({ text: "First" }));
+    expect(onHeadingSelect).toHaveBeenCalledWith(
+      expect.objectContaining({ text: "First" }),
+      false,
+      false,
+    );
 
     const slider = host.querySelector<HTMLElement>('[role="slider"]')!;
     document.body.append(host);
@@ -214,23 +222,64 @@ describe("ReadingRailView", () => {
       clientY: 20,
     }));
     expect(document.activeElement).toBe(slider);
-    expect(onProgressSelect).toHaveBeenLastCalledWith(0.2, true);
+    expect(onProgressSelect).toHaveBeenLastCalledWith(0.2, true, true);
 
     slider.dispatchEvent(new KeyboardEvent("keydown", { key: "PageDown", bubbles: true }));
-    expect(onProgressSelect).toHaveBeenLastCalledWith(0.6, false);
+    expect(onProgressSelect).toHaveBeenLastCalledWith(0.6, false, false);
+
+    slider.dispatchEvent(new KeyboardEvent("keydown", { key: "PageDown", bubbles: true }));
+    expect(onProgressSelect).toHaveBeenLastCalledWith(0.7, false, false);
 
     slider.dispatchEvent(new KeyboardEvent("keydown", { key: "x", bubbles: true }));
-    expect(onProgressSelect).toHaveBeenCalledTimes(2);
+    expect(onProgressSelect).toHaveBeenCalledTimes(3);
+  });
+
+  it("coalesces pointer proximity measurements into one animation frame", () => {
+    const clock = makeViewEnvironment();
+    const host = document.createElement("div");
+    const view = ReadingRailView.mount(host, {
+      onHeadingSelect: vi.fn(),
+      onProgressSelect: vi.fn(),
+    }, { environment: clock.environment });
+    const root = host.querySelector<HTMLElement>(".crisp-reading-rail")!;
+    const measureBounds = vi.fn(() => ({
+      top: 18,
+      left: 870,
+      right: 900,
+      bottom: 782,
+      width: 30,
+      height: 764,
+      x: 870,
+      y: 18,
+      toJSON: () => ({}),
+    }));
+    root.getBoundingClientRect = measureBounds;
+
+    for (let index = 0; index < 12; index += 1) {
+      host.dispatchEvent(new MouseEvent("pointermove", {
+        bubbles: true,
+        clientX: 780 + index,
+        clientY: 200,
+      }));
+    }
+
+    expect(measureBounds).not.toHaveBeenCalled();
+    expect(clock.pendingFrames).toBe(1);
+    clock.flushFrame();
+    expect(measureBounds).toHaveBeenCalledOnce();
+    expect(root.classList.contains("is-expanded")).toBe(true);
+    view.destroy();
   });
 
   it("expands near the rail and keeps labels clickable for three seconds", () => {
     vi.useFakeTimers();
+    const clock = makeViewEnvironment();
     const onHeadingSelect = vi.fn();
     const host = document.createElement("div");
     const view = ReadingRailView.mount(host, {
       onHeadingSelect,
       onProgressSelect: vi.fn(),
-    });
+    }, { environment: clock.environment });
     view.setOutline([makeEntry()], 12);
     const root = host.querySelector<HTMLElement>(".crisp-reading-rail")!;
     root.getBoundingClientRect = () => ({
@@ -250,6 +299,7 @@ describe("ReadingRailView", () => {
       clientX: 780,
       clientY: 200,
     }));
+    clock.flushFrame();
     expect(root.classList.contains("is-expanded")).toBe(true);
 
     host.dispatchEvent(new MouseEvent("pointermove", {
@@ -257,6 +307,7 @@ describe("ReadingRailView", () => {
       clientX: 700,
       clientY: 200,
     }));
+    clock.flushFrame();
     vi.advanceTimersByTime(2999);
     expect(root.classList.contains("is-expanded")).toBe(true);
     host.querySelector<HTMLButtonElement>(".crisp-reading-rail__label")?.click();
@@ -268,11 +319,12 @@ describe("ReadingRailView", () => {
 
   it("cancels delayed collapse on re-entry and clears owned work on destroy", () => {
     vi.useFakeTimers();
+    const clock = makeViewEnvironment();
     const host = document.createElement("div");
     const view = ReadingRailView.mount(host, {
       onHeadingSelect: vi.fn(),
       onProgressSelect: vi.fn(),
-    });
+    }, { environment: clock.environment });
     view.setOutline([makeEntry()], 12);
     const root = host.querySelector<HTMLElement>(".crisp-reading-rail")!;
     root.getBoundingClientRect = () => ({
@@ -287,10 +339,13 @@ describe("ReadingRailView", () => {
       toJSON: () => ({}),
     });
 
-    const move = (clientX: number) => host.dispatchEvent(new MouseEvent(
-      "pointermove",
-      { bubbles: true, clientX, clientY: 200 },
-    ));
+    const move = (clientX: number) => {
+      host.dispatchEvent(new MouseEvent(
+        "pointermove",
+        { bubbles: true, clientX, clientY: 200 },
+      ));
+      clock.flushFrame();
+    };
     move(780);
     move(700);
     vi.advanceTimersByTime(2000);
@@ -688,12 +743,23 @@ describe("ReadingRailView", () => {
       expect.objectContaining({
         attributes: true,
         attributeFilter: ["data-orb-style"],
+        childList: true,
       }),
     );
 
     document.querySelector<HTMLElement>(".crisp-fe-orb")!.dataset.orbStyle = "tennis";
-    clock.mutationObservers[0].callback([], {} as MutationObserver);
+    clock.mutationObservers[0].callback([{
+      type: "attributes",
+      target: document.querySelector<HTMLElement>(".crisp-fe-orb")!,
+    } as unknown as MutationRecord], {} as MutationObserver);
     expect(orb.dataset.orbStyle).toBe("tennis");
+
+    const stableMedia = orb.firstElementChild;
+    clock.mutationObservers[0].callback([{
+      type: "attributes",
+      target: orb,
+    } as unknown as MutationRecord], {} as MutationObserver);
+    expect(orb.firstElementChild).toBe(stableMedia);
 
     const track = host.querySelector<HTMLElement>(".crisp-reading-rail__track")!;
     setMetric(track, "clientHeight", 400);
@@ -702,6 +768,46 @@ describe("ReadingRailView", () => {
     view.destroy();
     expect(clock.cancelled).toHaveLength(1);
     expect(clock.mutationObservers[0].disconnect).toHaveBeenCalledTimes(1);
+  });
+
+  it("starts and stops following when the companion orb is inserted or removed", () => {
+    document.body.replaceChildren();
+    const clock = makeViewEnvironment();
+    const host = document.createElement("div");
+    document.body.append(host);
+    ReadingRailView.mount(host, {
+      onHeadingSelect: vi.fn(),
+      onProgressSelect: vi.fn(),
+    }, {
+      appearance: {
+        getOrbStyle: () => "followFileExplorer",
+        getAssetUrl: (path) => `app://reading-rail/${path}`,
+      },
+      environment: clock.environment,
+    });
+    const orb = host.querySelector<HTMLElement>(".crisp-reading-rail__orb")!;
+    expect(orb.dataset.orbStyle).toBe("default");
+
+    const companion = document.createElement("div");
+    companion.className = "crisp-fe-orb";
+    companion.dataset.orbStyle = "gear";
+    document.body.append(companion);
+    clock.mutationObservers[0].callback([{
+      type: "childList",
+      target: document.body,
+      addedNodes: [companion] as unknown as NodeList,
+      removedNodes: [] as unknown as NodeList,
+    } as unknown as MutationRecord], {} as MutationObserver);
+    expect(orb.dataset.orbStyle).toBe("gear");
+
+    companion.remove();
+    clock.mutationObservers[0].callback([{
+      type: "childList",
+      target: document.body,
+      addedNodes: [] as unknown as NodeList,
+      removedNodes: [companion] as unknown as NodeList,
+    } as unknown as MutationRecord], {} as MutationObserver);
+    expect(orb.dataset.orbStyle).toBe("default");
   });
 
   it("remeasures multiline labels and resolves their variable-height collisions", () => {

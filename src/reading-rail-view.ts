@@ -28,8 +28,8 @@ interface MutationObserverHandle {
 }
 
 export interface RailViewCallbacks {
-  onHeadingSelect(entry: OutlineEntry): void;
-  onProgressSelect(progress: number, audible?: boolean): void;
+  onHeadingSelect(entry: OutlineEntry, audible?: boolean, animated?: boolean): void;
+  onProgressSelect(progress: number, audible?: boolean, animated?: boolean): void;
   onProgressDrag?(progress: number): void;
   onProgressDragEnd?(progress: number): void;
   onProgressDragCancel?(progress: number): void;
@@ -94,6 +94,8 @@ export class ReadingRailView {
   private positionInitialized = false;
   private visible = true;
   private frameId: number | null = null;
+  private proximityFrameId: number | null = null;
+  private pendingProximityPoint: { clientX: number; clientY: number } | null = null;
   private lastFrameTimestamp: number | null = null;
   private collapseTimer: number | null = null;
   private dragPointerId: number | null = null;
@@ -261,10 +263,15 @@ export class ReadingRailView {
       label.className = "crisp-reading-rail__label";
       label.textContent = entry.text;
       label.style.setProperty("--crisp-reading-level", String(entry.level - 2));
-      label.addEventListener("click", () => {
+      label.addEventListener("click", (event) => {
         const currentEntry = this.entries[index];
         if (currentEntry) {
-          this.callbacks.onHeadingSelect(currentEntry);
+          const pointerActivated = event.detail > 0;
+          this.callbacks.onHeadingSelect(
+            currentEntry,
+            pointerActivated,
+            pointerActivated,
+          );
         }
       });
       return label;
@@ -323,6 +330,7 @@ export class ReadingRailView {
         this.callbacks.onProgressDragCancel?.(dragProgress);
       }
       this.cancelAnimation();
+      this.cancelProximityCheck();
       this.positionInitialized = false;
       this.setExpanded(false);
       return;
@@ -338,14 +346,19 @@ export class ReadingRailView {
     if (setting !== "followFileExplorer") {
       return;
     }
-    this.followObserver = this.environment.createMutationObserver(() => {
-      if (!this.destroyed) {
-        this.applyOrbStyle(resolveOrbStyle(setting, this.root.ownerDocument));
+    this.followObserver = this.environment.createMutationObserver((records) => {
+      if (this.destroyed || !this.hasCompanionMutation(records)) {
+        return;
+      }
+      const nextStyle = resolveOrbStyle(setting, this.root.ownerDocument);
+      if (nextStyle !== this.resolvedOrbStyle) {
+        this.applyOrbStyle(nextStyle);
       }
     });
     this.followObserver.observe(this.root.ownerDocument.documentElement, {
       attributes: true,
       attributeFilter: ["data-orb-style"],
+      childList: true,
       subtree: true,
     });
   }
@@ -357,6 +370,7 @@ export class ReadingRailView {
     this.destroyed = true;
     this.finishDrag();
     this.cancelAnimation();
+    this.cancelProximityCheck();
     this.cancelCollapse();
     this.followObserver?.disconnect();
     this.followObserver = null;
@@ -564,24 +578,45 @@ export class ReadingRailView {
 
   private readonly handlePointerMove = (event: PointerEvent): void => {
     if (this.root.contains(event.target as Node | null)) {
+      this.cancelProximityCheck();
       this.expandNow();
       return;
     }
+    this.pendingProximityPoint = {
+      clientX: event.clientX,
+      clientY: event.clientY,
+    };
+    if (this.proximityFrameId !== null) {
+      return;
+    }
+    this.proximityFrameId = this.environment.requestAnimationFrame(() => {
+      this.proximityFrameId = null;
+      const point = this.pendingProximityPoint;
+      this.pendingProximityPoint = null;
+      if (!point || this.destroyed || !this.visible) {
+        return;
+      }
+      this.updatePointerProximity(point.clientX, point.clientY);
+    });
+  };
+
+  private updatePointerProximity(clientX: number, clientY: number): void {
     const bounds = this.root.getBoundingClientRect();
-    const verticallyAligned = event.clientY >= bounds.top && event.clientY <= bounds.bottom;
-    const horizontallyNear = event.clientX >= bounds.left - PROXIMITY_DISTANCE
-      && event.clientX <= bounds.right;
+    const verticallyAligned = clientY >= bounds.top && clientY <= bounds.bottom;
+    const horizontallyNear = clientX >= bounds.left - PROXIMITY_DISTANCE
+      && clientX <= bounds.right;
     if (verticallyAligned && horizontallyNear) {
       this.expandNow();
     } else {
       this.scheduleCollapse();
     }
-  };
+  }
 
   private readonly handlePointerLeave = (): void => {
     if (this.dragPointerId !== null) {
       return;
     }
+    this.cancelProximityCheck();
     this.scheduleCollapse();
   };
 
@@ -619,6 +654,14 @@ export class ReadingRailView {
     this.collapseTimer = null;
   }
 
+  private cancelProximityCheck(): void {
+    if (this.proximityFrameId !== null) {
+      this.environment.cancelAnimationFrame(this.proximityFrameId);
+      this.proximityFrameId = null;
+    }
+    this.pendingProximityPoint = null;
+  }
+
   private readonly handlePointerDown = (event: PointerEvent): void => {
     if (
       event.isPrimary === false
@@ -637,6 +680,7 @@ export class ReadingRailView {
     event.preventDefault();
     this.callbacks.onProgressSelect(
       progressFromPointer(event.clientY, bounds.top, bounds.height),
+      true,
       true,
     );
   };
@@ -766,8 +810,32 @@ export class ReadingRailView {
       return;
     }
     event.preventDefault();
-    this.callbacks.onProgressSelect(next, false);
+    this.updateProgressState(next);
+    this.snapToTarget();
+    this.callbacks.onProgressSelect(next, false, false);
   };
+
+  private hasCompanionMutation(records: readonly MutationRecord[]): boolean {
+    const selector = ".crisp-fe-orb";
+    const asElement = (node: Node): Element | null => (
+      node.nodeType === node.ELEMENT_NODE ? node as Element : null
+    );
+    const containsCompanion = (node: Node): boolean => {
+      const element = asElement(node);
+      return element !== null
+        && (element.matches(selector) || element.querySelector(selector) !== null);
+    };
+    return records.some((record) => {
+      if (record.type === "attributes") {
+        return asElement(record.target)?.matches(selector) ?? false;
+      }
+      if (record.type !== "childList") {
+        return false;
+      }
+      return Array.from(record.addedNodes).some(containsCompanion)
+        || Array.from(record.removedNodes).some(containsCompanion);
+    });
+  }
 
   private updateReadTicks(): void {
     if (this.ticks.length === 0) {
