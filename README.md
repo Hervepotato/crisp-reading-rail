@@ -1,11 +1,12 @@
 # Crisp Reading Rail
 
-Crisp Reading Rail adds a compact reading-progress and heading-navigation rail to the right edge of each eligible Obsidian Markdown Reading view. Its restrained line, proportional heading marks, animated wave, and optional orbs sit alongside the visual language of Crisp File Explorer without occupying Obsidian's native right sidebar.
+Crisp Reading Rail adds a compact reading-progress and heading-navigation rail to the right edge of each eligible Obsidian Markdown Reading view. Its proportional heading marks, orb-centered focus line, animated wave, and optional orbs sit alongside the visual language of Crisp File Explorer without occupying Obsidian's native right sidebar.
 
-## v0.3.4 behavior
+## v0.3.5 behavior
 
 - Works in Markdown Reading view on desktop Obsidian.
 - Shows borderless progress from `0.00` to `1.00`, completed-tick state, content-proportional H2-H4 marks, and a spring-following current-position orb.
+- Uses only a short, fading line centered on the orb; there is no persistent full-height vertical rule.
 - Bends nearby fine and heading marks leftward in a natural wave while scrolling. Reduced-motion mode snaps directly to the reading position.
 - Reveals H2, H3, and H4 labels when the pointer comes within 96px, on hover, or on keyboard focus. Labels remain clickable for three seconds after leaving.
 - Wraps long labels to at most three lines and uses their measured heights to prevent collisions without changing document layout.
@@ -20,6 +21,12 @@ Open **Settings → Crisp Reading Rail → Orb style** to choose Default, Random
 
 All SVG and PNG resources used by Crisp Reading Rail are installed in this plugin's own `assets/` directory. It does not read Crisp File Explorer's files or private settings at runtime.
 
+## Navigation sound setting
+
+Open **Settings → Crisp Reading Rail → Navigation sound** to opt into very soft interaction feedback. Sound is off by default. When enabled, dragging across heading marks produces rate-limited quiet ticks, while track clicks, heading selections, and normal drag release use a subtle settle tone.
+
+Normal wheel, touchpad, touch, keyboard, and programmatic scrolling remains silent. Sounds are synthesized locally with Web Audio; the plugin contains no audio files and makes no network requests.
+
 ## Keyboard interaction
 
 Focus the rail's single reading-position slider, then use:
@@ -29,7 +36,7 @@ Focus the rail's single reading-position slider, then use:
 - Home and End to move to the beginning or end.
 - Tab to reach visible native heading buttons.
 
-Keyboard handling is local to the focused rail. The plugin does not register default hotkeys or intercept Obsidian shortcuts globally. Reduced-motion preferences replace smooth navigation with immediate movement.
+Keyboard handling is local to the focused rail. The plugin does not register default hotkeys, intercept Obsidian shortcuts globally, or play navigation sounds for slider key presses. Reduced-motion preferences replace smooth navigation with immediate movement.
 
 ## Local installation
 

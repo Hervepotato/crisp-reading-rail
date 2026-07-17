@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi, type Mock } from "vitest";
 import {
   ReadingRailAudio,
   type ReadingRailAudioEnvironment,
@@ -70,14 +70,14 @@ function makeAudioContext(state: AudioContextState = "running"): FakeAudioFixtur
 function makeEnvironment(
   fixture: FakeAudioFixture,
   now: () => number,
-): ReadingRailAudioEnvironment & {
-  createContext: ReturnType<typeof vi.fn>;
-  debug: ReturnType<typeof vi.fn>;
+): Omit<ReadingRailAudioEnvironment, "createContext" | "debug"> & {
+  createContext: Mock<() => AudioContext | null>;
+  debug: Mock<(message: string, error: unknown) => void>;
 } {
   return {
     now,
-    createContext: vi.fn(() => fixture.context),
-    debug: vi.fn(),
+    createContext: vi.fn<() => AudioContext | null>(() => fixture.context),
+    debug: vi.fn<(message: string, error: unknown) => void>(),
   };
 }
 

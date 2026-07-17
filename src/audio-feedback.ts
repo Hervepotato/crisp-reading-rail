@@ -28,10 +28,12 @@ export function createReadingRailAudioEnvironment(
   return {
     now: () => window.performance.now(),
     createContext: () => {
-      const WindowWithWebkit = window as Window & {
+      const WindowWithAudio = window as Window & {
+        AudioContext?: typeof AudioContext;
         webkitAudioContext?: typeof AudioContext;
       };
-      const Context = window.AudioContext ?? WindowWithWebkit.webkitAudioContext;
+      const Context = WindowWithAudio.AudioContext
+        ?? WindowWithAudio.webkitAudioContext;
       return Context ? new Context() : null;
     },
     debug: (message, error) => console.debug(message, error),
