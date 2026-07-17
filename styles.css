@@ -35,14 +35,7 @@
 }
 
 .crisp-reading-rail .crisp-reading-rail__line::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: color-mix(
-    in srgb,
-    var(--crisp-reading-line-color) 28%,
-    transparent
-  );
+  content: none;
 }
 
 .crisp-reading-rail .crisp-reading-rail__line-focus {
@@ -61,6 +54,7 @@
     color-mix(in srgb, var(--crisp-reading-line-color) 10%, transparent) 88%,
     transparent 100%
   );
+  opacity: 0.9;
   will-change: transform;
   pointer-events: none;
 }
@@ -319,8 +313,8 @@
 }
 
 .crisp-reading-rail .crisp-reading-rail__track:focus-visible
-  .crisp-reading-rail__line::before {
-  background: color-mix(in srgb, var(--crisp-reading-accent) 72%, transparent);
+  .crisp-reading-rail__line-focus {
+  opacity: 1;
 }
 
 @media (prefers-reduced-motion: reduce) {

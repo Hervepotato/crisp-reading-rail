@@ -17,6 +17,18 @@ describe("Crisp Reading Rail styles", () => {
     );
   });
 
+  it("keeps only the orb-centered focus line instead of a full-height rule", () => {
+    expect(css).toMatch(
+      /\.crisp-reading-rail \.crisp-reading-rail__line::before\s*{[\s\S]*?content: none;/,
+    );
+    expect(css).not.toMatch(
+      /focus-visible[\s\S]*?\.crisp-reading-rail__line::before/,
+    );
+    expect(css).toMatch(
+      /focus-visible[\s\S]*?\.crisp-reading-rail__line-focus/,
+    );
+  });
+
   it("exposes a touch-safe grab affordance and restrained drag feedback", () => {
     expect(css).toMatch(
       /\.crisp-reading-rail \.crisp-reading-rail__orb\s*{[\s\S]*?cursor: grab;[\s\S]*?touch-action: none;/,
