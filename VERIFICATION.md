@@ -153,7 +153,7 @@ Deployment preserved the pre-deploy `data.json` hashes: ALL remained `a803aba2â€
 
 ### Sanitized share package
 
-Created `/Users/xiaohetongxue/Desktop/Crisp-Reading-Rail-0.3.11-share.zip` with 22 runtime files: `main.js`, `manifest.json`, `styles.css`, and all 19 referenced assets. The archive excludes `data.json`, source, tests, repository metadata, vault configuration, and local machine paths.
+Created `$HOME/Desktop/Crisp-Reading-Rail-0.3.11-share.zip` with 22 runtime files: `main.js`, `manifest.json`, `styles.css`, and all 19 referenced assets. The archive excludes `data.json`, source, tests, repository metadata, vault configuration, and local machine paths.
 
 `unzip -t`, source-to-archive byte comparisons, referenced-asset coverage, manifest version validation, and sensitive-string scanning all passed. Archive SHA-256: `7cb16ccd49a6bb959630e768ab89f0b13712bc329ffce2934935fe6e8d5703dd`.
 
@@ -228,8 +228,8 @@ The new regression coverage includes sound-style normalization and Crisp File Ex
 The repository build was deployed with the asset-aware deployment script to:
 
 ```text
-/Users/xiaohetongxue/Library/Mobile Documents/iCloud~md~obsidian/Documents/ALL/.obsidian/plugins/crisp-reading-rail
-/Users/xiaohetongxue/Library/Mobile Documents/iCloud~md~obsidian/Documents/YS/.obsidian/plugins/crisp-reading-rail
+$HOME/Library/Mobile Documents/iCloud~md~obsidian/Documents/ALL/.obsidian/plugins/crisp-reading-rail
+$HOME/Library/Mobile Documents/iCloud~md~obsidian/Documents/YS/.obsidian/plugins/crisp-reading-rail
 ```
 
 Both runtimes matched the repository byte for byte:
@@ -348,7 +348,7 @@ Result: all commands exited successfully. Vitest reported 6 test files and 22 pa
 Runtime directory:
 
 ```text
-/Users/xiaohetongxue/Library/Mobile Documents/iCloud~md~obsidian/Documents/ALL/.obsidian/plugins/crisp-reading-rail
+$HOME/Library/Mobile Documents/iCloud~md~obsidian/Documents/ALL/.obsidian/plugins/crisp-reading-rail
 ```
 
 The runtime directory contains exactly `main.js`, `manifest.json`, and `styles.css`. Each deployed artifact matched its source artifact byte for byte. The plugin id remains present in `.obsidian/community-plugins.json`, and the final Obsidian state has one active Reading rail with Developer Tools closed.
