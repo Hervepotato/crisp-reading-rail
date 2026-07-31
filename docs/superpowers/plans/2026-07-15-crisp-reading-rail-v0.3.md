@@ -71,7 +71,7 @@ Define `MaterialOrbStyle`, `OrbStyleSetting`, `ResolvedOrbStyle`, `ORB_STYLE_OPT
 
 Copy exact bytes from:
 
-`/Users/xiaohetongxue/Library/Mobile Documents/iCloud~md~obsidian/Documents/ALL/.obsidian/plugins/crisp-file-explorer/assets/`
+`$HOME/Library/Mobile Documents/iCloud~md~obsidian/Documents/ALL/.obsidian/plugins/crisp-file-explorer/assets/`
 
 into this plugin's `assets/`. Compare each source/destination file with `cmp`.
 
@@ -206,7 +206,7 @@ Set package/manifest to `0.3.0`, add the version mapping, document the new Orb s
 npm test -- --run
 npm run check
 npm run build
-npm run deploy -- "/Users/xiaohetongxue/Library/Mobile Documents/iCloud~md~obsidian/Documents/ALL"
+npm run deploy -- "$HOME/Library/Mobile Documents/iCloud~md~obsidian/Documents/ALL"
 ```
 
 Compare source/deployed `main.js`, `manifest.json`, `styles.css`, and every asset byte-for-byte. Confirm the runtime manifest is `0.3.0` and the plugin remains enabled.

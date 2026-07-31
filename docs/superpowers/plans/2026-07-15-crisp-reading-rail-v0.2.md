@@ -185,9 +185,9 @@ git commit -m "feat: add proximity label interaction"
 - Modify: `package-lock.json`
 - Modify: `manifest.json`
 - Modify: `versions.json`
-- Deploy output: `/Users/xiaohetongxue/Library/Mobile Documents/iCloud~md~obsidian/Documents/ALL/.obsidian/plugins/crisp-reading-rail/main.js`
-- Deploy output: `/Users/xiaohetongxue/Library/Mobile Documents/iCloud~md~obsidian/Documents/ALL/.obsidian/plugins/crisp-reading-rail/styles.css`
-- Deploy output: `/Users/xiaohetongxue/Library/Mobile Documents/iCloud~md~obsidian/Documents/ALL/.obsidian/plugins/crisp-reading-rail/manifest.json`
+- Deploy output: `$HOME/Library/Mobile Documents/iCloud~md~obsidian/Documents/ALL/.obsidian/plugins/crisp-reading-rail/main.js`
+- Deploy output: `$HOME/Library/Mobile Documents/iCloud~md~obsidian/Documents/ALL/.obsidian/plugins/crisp-reading-rail/styles.css`
+- Deploy output: `$HOME/Library/Mobile Documents/iCloud~md~obsidian/Documents/ALL/.obsidian/plugins/crisp-reading-rail/manifest.json`
 
 **Interfaces:**
 - Consumes: Obsidian CSS variables and the `is-expanded`, `is-active`, `aria-current`, hover, and focus states from Tasks 1-2.
@@ -220,9 +220,9 @@ Run: `npm run deploy`
 Expected: deployment reports the active vault plugin directory. Then run:
 
 ```bash
-cmp main.js "/Users/xiaohetongxue/Library/Mobile Documents/iCloud~md~obsidian/Documents/ALL/.obsidian/plugins/crisp-reading-rail/main.js"
-cmp styles.css "/Users/xiaohetongxue/Library/Mobile Documents/iCloud~md~obsidian/Documents/ALL/.obsidian/plugins/crisp-reading-rail/styles.css"
-cmp manifest.json "/Users/xiaohetongxue/Library/Mobile Documents/iCloud~md~obsidian/Documents/ALL/.obsidian/plugins/crisp-reading-rail/manifest.json"
+cmp main.js "$HOME/Library/Mobile Documents/iCloud~md~obsidian/Documents/ALL/.obsidian/plugins/crisp-reading-rail/main.js"
+cmp styles.css "$HOME/Library/Mobile Documents/iCloud~md~obsidian/Documents/ALL/.obsidian/plugins/crisp-reading-rail/styles.css"
+cmp manifest.json "$HOME/Library/Mobile Documents/iCloud~md~obsidian/Documents/ALL/.obsidian/plugins/crisp-reading-rail/manifest.json"
 ```
 
 Expected: every `cmp` exits 0.
