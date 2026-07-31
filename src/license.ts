@@ -1,3 +1,5 @@
+import { requestUrl } from "obsidian";
+
 export interface LicensePayload {
   product: string;
   licenseId: string;
@@ -133,7 +135,8 @@ export async function verifyLicenseCode(
 
     try {
       const deviceId = getDeviceId();
-      const response = await fetch(WORKER_VERIFY_URL, {
+      const res = await requestUrl({
+        url: WORKER_VERIFY_URL,
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -144,8 +147,8 @@ export async function verifyLicenseCode(
         })
       });
 
-      if (response.ok) {
-        const cloudResult = await response.json();
+      if (res.status === 200 && res.json) {
+        const cloudResult = res.json as { valid?: boolean; reason?: string; message?: string };
         if (cloudResult.valid === false) {
           return { valid: false, reason: cloudResult.reason || "设备数已达上限" };
         }
