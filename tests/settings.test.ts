@@ -13,6 +13,7 @@ describe("plugin settings", () => {
       soundEnabled: false,
       soundStyle: "followFileExplorer",
       releaseSoundEnabled: true,
+      licenseCode: "",
       waypoints: {},
     });
     expect(normalizeSettings(null)).toEqual(DEFAULT_SETTINGS);
@@ -24,6 +25,7 @@ describe("plugin settings", () => {
       soundEnabled: false,
       soundStyle: "followFileExplorer",
       releaseSoundEnabled: true,
+      licenseCode: "",
       waypoints: {},
     });
     expect(normalizeSettings({ orbStyle: "old-orb", unrelated: true })).toEqual({
@@ -31,6 +33,7 @@ describe("plugin settings", () => {
       soundEnabled: false,
       soundStyle: "followFileExplorer",
       releaseSoundEnabled: true,
+      licenseCode: "",
       waypoints: {},
     });
   });
@@ -41,6 +44,7 @@ describe("plugin settings", () => {
       soundEnabled: true,
       soundStyle: "followFileExplorer",
       releaseSoundEnabled: true,
+      licenseCode: "",
       waypoints: {},
     });
     expect(normalizeSettings({ soundEnabled: "yes" })).toEqual({
@@ -48,6 +52,7 @@ describe("plugin settings", () => {
       soundEnabled: false,
       soundStyle: "followFileExplorer",
       releaseSoundEnabled: true,
+      licenseCode: "",
       waypoints: {},
     });
   });
@@ -61,6 +66,7 @@ describe("plugin settings", () => {
       soundEnabled: false,
       soundStyle: "retro8bit",
       releaseSoundEnabled: false,
+      licenseCode: "",
       waypoints: {},
     });
     expect(normalizeSettings({
