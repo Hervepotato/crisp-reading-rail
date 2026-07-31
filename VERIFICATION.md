@@ -1,5 +1,24 @@
 # Crisp Reading Rail verification
 
+## v0.3.18 License verification and requestUrl update
+
+Verified on 2026-07-31 in the ALL, YS, and test obsidian vaults.
+
+### License verification
+
+- The Ed25519 public key was rotated and the legacy key was removed: plugins and the Cloudflare Worker now accept only codes signed with the current key.
+- Online device checks now use Obsidian `requestUrl` instead of `fetch` (Electron/CSP safe), consistent with the other Crisp plugins.
+- Old-signed codes are rejected by both the plugins and the Worker `verify-device` endpoint; newly issued codes activate with the device limit enforced.
+
+### Automated gate
+
+- `npm run check` passed with 13 test files and 106 tests, followed by ESLint, TypeScript, and a production build.
+
+### Live Obsidian acceptance
+
+- ALL and YS both loaded Crisp Reading Rail `0.3.18` with no captured errors (`dev:errors` clean).
+- Runtime files (main.js, manifest.json, styles.css, assets/) were byte-identical across ALL, YS, and test obsidian; each vault kept its own `data.json`.
+
 ## v0.3.14 Border and Crisp Annotations coexistence
 
 Verified on 2026-07-28 with Obsidian Desktop 1.12.7 in the ALL and YS vaults.
