@@ -5,6 +5,6 @@
   "minAppVersion": "1.6.0",
   "description": "Adds a compact reading-progress and heading navigation rail to Markdown Reading view.",
   "author": "letschips",
-  "authorUrl": "https://github.com/Hervepotato",
+  "authorUrl": "https://github.com/letschips",
   "isDesktopOnly": true
 }
