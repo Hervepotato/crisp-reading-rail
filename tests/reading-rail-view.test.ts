@@ -234,6 +234,134 @@ describe("ReadingRailView", () => {
     expect(onProgressSelect).toHaveBeenCalledTimes(3);
   });
 
+  it("renders accessible persisted waypoints and removes them by keyboard", () => {
+    const onProgressSelect = vi.fn();
+    const onWaypointsChange = vi.fn();
+    const host = document.createElement("div");
+    const view = ReadingRailView.mount(host, {
+      onHeadingSelect: vi.fn(),
+      onProgressSelect,
+      onWaypointsChange,
+    });
+
+    view.setWaypoints([0.75, 0.25, 0.25001]);
+
+    const waypoints = host.querySelectorAll<HTMLButtonElement>(
+      "button.crisp-reading-rail__waypoint",
+    );
+    expect(waypoints).toHaveLength(2);
+    expect([...waypoints].map((waypoint) => waypoint.dataset.progress))
+      .toEqual(["0.25", "0.75"]);
+    expect(waypoints[0].getAttribute("aria-label")).toContain("25 percent");
+
+    waypoints[0].click();
+    expect(onProgressSelect).toHaveBeenLastCalledWith(0.25, false, false);
+
+    waypoints[0].dispatchEvent(new KeyboardEvent("keydown", {
+      key: "Delete",
+      bubbles: true,
+      cancelable: true,
+    }));
+    expect(onWaypointsChange).toHaveBeenLastCalledWith([0.75]);
+    expect(host.querySelectorAll(".crisp-reading-rail__waypoint")).toHaveLength(1);
+  });
+
+  it("adds waypoints from a double click or the focused slider M key", () => {
+    const onWaypointsChange = vi.fn();
+    const onProgressSelect = vi.fn();
+    const host = document.createElement("div");
+    const view = ReadingRailView.mount(host, {
+      onHeadingSelect: vi.fn(),
+      onProgressSelect,
+      onWaypointsChange,
+    });
+    const track = host.querySelector<HTMLElement>(".crisp-reading-rail__track")!;
+    track.getBoundingClientRect = () => ({
+      top: 0, left: 0, right: 30, bottom: 100, width: 30, height: 100,
+      x: 0, y: 0, toJSON: () => ({}),
+    });
+
+    track.dispatchEvent(new MouseEvent("dblclick", {
+      bubbles: true,
+      cancelable: true,
+      clientY: 40,
+    }));
+    expect(onWaypointsChange).toHaveBeenLastCalledWith([0.4]);
+
+    view.setProgress(0.65);
+    track.dispatchEvent(new KeyboardEvent("keydown", {
+      key: "m",
+      bubbles: true,
+      cancelable: true,
+    }));
+    expect(onWaypointsChange).toHaveBeenLastCalledWith([0.4, 0.65]);
+    expect(track.getAttribute("aria-description")).toContain("Double-click");
+
+    onWaypointsChange.mockClear();
+    view.destroy();
+    track.dispatchEvent(new MouseEvent("dblclick", {
+      bubbles: true,
+      clientY: 80,
+    }));
+    expect(onWaypointsChange).not.toHaveBeenCalled();
+  });
+
+  it("celebrates completion without replacing the orb position transform", () => {
+    const sound = {
+      tick: vi.fn(),
+      settle: vi.fn(),
+      completionChime: vi.fn(),
+    };
+    const clock = makeViewEnvironment();
+    const host = document.createElement("div");
+    const view = ReadingRailView.mount(host, {
+      onHeadingSelect: vi.fn(),
+      onProgressSelect: vi.fn(),
+    }, { environment: clock.environment, sound });
+    const track = host.querySelector<HTMLElement>(".crisp-reading-rail__track")!;
+    const orb = host.querySelector<HTMLElement>(".crisp-reading-rail__orb")!;
+    setMetric(track, "clientHeight", 400);
+    view.setOutline([], 12);
+    view.setProgress(0.9);
+    clock.flushAll();
+    const positionTransform = orb.style.transform;
+
+    view.setProgress(0.99);
+    expect(sound.completionChime).toHaveBeenCalledOnce();
+    expect(orb.classList.contains("is-celebrating")).toBe(true);
+    expect(orb.style.transform).toBe(positionTransform);
+
+    const animationEnd = new Event("animationend", { bubbles: true });
+    Object.defineProperty(animationEnd, "animationName", {
+      value: "crisp-orb-celebrate",
+    });
+    orb.dispatchEvent(animationEnd);
+    expect(orb.classList.contains("is-celebrating")).toBe(false);
+
+    view.setProgress(0.8);
+    view.setProgress(1);
+    expect(sound.completionChime).toHaveBeenCalledTimes(2);
+  });
+
+  it("keeps the completion celebration still when reduced motion is requested", () => {
+    const sound = {
+      tick: vi.fn(),
+      settle: vi.fn(),
+      completionChime: vi.fn(),
+    };
+    const clock = makeViewEnvironment(true);
+    const host = document.createElement("div");
+    const view = ReadingRailView.mount(host, {
+      onHeadingSelect: vi.fn(),
+      onProgressSelect: vi.fn(),
+    }, { environment: clock.environment, sound });
+
+    view.setProgress(1);
+
+    expect(sound.completionChime).toHaveBeenCalledOnce();
+    expect(host.querySelector(".crisp-reading-rail__orb.is-celebrating")).toBeNull();
+  });
+
   it("coalesces pointer proximity measurements into one animation frame", () => {
     const clock = makeViewEnvironment();
     const host = document.createElement("div");
@@ -668,7 +796,7 @@ describe("ReadingRailView", () => {
     expect(translateY(host.querySelector(".crisp-reading-rail__active"))).toBe(240);
   });
 
-  it("renders inline and file orbs, keeps characters upright, and falls back on image error", () => {
+  it("renders replacement and character assets, keeps characters upright, and falls back on image error", () => {
     let style: "soccer" | "character1" = "soccer";
     const host = document.createElement("div");
     const view = ReadingRailView.mount(host, {
@@ -682,7 +810,9 @@ describe("ReadingRailView", () => {
     });
     const orb = host.querySelector<HTMLElement>(".crisp-reading-rail__orb")!;
     expect(orb.dataset.orbStyle).toBe("soccer");
-    expect(orb.querySelector("svg")).not.toBeNull();
+    const soccer = orb.querySelector<HTMLImageElement>("img")!;
+    expect(soccer.src).toContain("app://reading-rail/assets/soccer.svg");
+    expect(orb.querySelector("svg")).toBeNull();
 
     style = "character1";
     view.refreshAppearance();

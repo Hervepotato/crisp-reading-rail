@@ -19,12 +19,16 @@ const LABEL_HEIGHT = 20;
 const LABEL_GAP = 4;
 const HEADING_ACTIVATION_OFFSET = 80;
 const STRUCTURE_REFRESH_DELAY = 80;
+const RESIZE_REFRESH_DELAY = 120;
 const NAVIGATION_MIN_DURATION = 260;
 const NAVIGATION_MAX_DURATION = 900;
 const NAVIGATION_MS_PER_PIXEL = 0.08;
 const NAVIGATION_SETTLE_TOLERANCE = 0.5;
 const NAVIGATION_STABLE_FRAMES = 2;
 const NAVIGATION_MAX_FINAL_FRAMES = 30;
+const NATIVE_SCROLLBAR_CLASS = "crisp-reading-rail-native-scrollbar";
+const RIGHT_ANNOTATION_AVOIDANCE_CLASS =
+  "crisp-reading-rail-avoid-right-annotations";
 
 interface ResizeObserverHandle {
   observe(target: Element, options?: ResizeObserverOptions): void;
@@ -36,21 +40,40 @@ interface MutationObserverHandle {
   disconnect(): void;
 }
 
-interface ScrollNavigation {
-  resolveTop(): number;
-  startTop: number;
-  startedAt: number | null;
-  duration: number;
+interface SettleState {
   lastTarget: number | null;
   stableFrames: number;
   finalFrames: number;
 }
 
-interface ProgressSettlement {
+interface ScrollNavigation extends SettleState {
+  resolveTop(): number;
+  startTop: number;
+  startedAt: number | null;
+  duration: number;
+}
+
+interface ProgressSettlement extends SettleState {
   progress: number;
-  lastTarget: number | null;
-  stableFrames: number;
-  finalFrames: number;
+}
+
+/**
+ * Check if a scroll animation has settled (target and position both stable).
+ * Updates the state in-place and returns true when settled.
+ */
+function checkSettled(
+  state: SettleState,
+  target: number,
+  scrollTop: number,
+): boolean {
+  const targetStable = state.lastTarget !== null
+    && Math.abs(target - state.lastTarget) <= NAVIGATION_SETTLE_TOLERANCE;
+  const positionSettled = Math.abs(scrollTop - target) <= NAVIGATION_SETTLE_TOLERANCE;
+  state.stableFrames = targetStable && positionSettled ? state.stableFrames + 1 : 0;
+  state.lastTarget = target;
+  state.finalFrames += 1;
+  return state.stableFrames >= NAVIGATION_STABLE_FRAMES
+    || state.finalFrames >= NAVIGATION_MAX_FINAL_FRAMES;
 }
 
 export interface RailControllerEnvironment {
@@ -67,6 +90,7 @@ export interface RailView {
   setOutline(entries: readonly OutlineEntry[], tickCount: number): void;
   setProgress(progress: number): void;
   setActiveHeading(index: number): void;
+  setWaypoints(waypoints: readonly number[]): void;
   setExpanded(expanded: boolean): void;
   setVisible(visible: boolean): void;
   refreshAppearance(): void;
@@ -79,6 +103,8 @@ export interface ReadingRailControllerOptions {
   preview: HTMLElement;
   getHeadings(): readonly OutlineHeading[];
   getLineCount?(): number;
+  getWaypoints?(): readonly number[];
+  setWaypoints?(waypoints: readonly number[]): void;
   appearance?: RailAppearanceProvider;
   sound?: RailSoundProvider;
   environment?: RailControllerEnvironment;
@@ -112,6 +138,8 @@ export class ReadingRailController {
   private readonly preview: HTMLElement;
   private readonly getHeadings: () => readonly OutlineHeading[];
   private readonly getLineCount: () => number;
+  private readonly getWaypoints: () => readonly number[];
+  private readonly setWaypoints: (waypoints: readonly number[]) => void;
   private readonly environment: RailControllerEnvironment;
   private readonly appearance?: RailAppearanceProvider;
   private readonly sound?: RailSoundProvider;
@@ -132,7 +160,12 @@ export class ReadingRailController {
   private dragProgress: number | null = null;
   private lastDragHeadingIndex: number | null = null;
   private refreshTimer: number | null = null;
+  private resizeRefreshTimer: number | null = null;
+  private observedHostWidth = 0;
+  private observedHostHeight = 0;
+  private observedScrollerHeight = 0;
   private pendingHeadingLine: number | null = null;
+  private activeHeadingIndex = -1;
   private needsMeasurement = false;
   private started = false;
   private destroyed = false;
@@ -141,14 +174,37 @@ export class ReadingRailController {
     this.host = options.host;
     this.scroller = options.scroller;
     this.preview = options.preview;
+    this.observedHostWidth = this.host.clientWidth;
+    this.observedHostHeight = this.host.clientHeight;
+    this.observedScrollerHeight = this.scroller.clientHeight;
     this.getHeadings = options.getHeadings;
     this.getLineCount = options.getLineCount ?? (() => 0);
+    this.getWaypoints = options.getWaypoints ?? (() => []);
+    this.setWaypoints = options.setWaypoints ?? (() => undefined);
     this.appearance = options.appearance;
     this.sound = options.sound;
     this.environment = options.environment ?? createDefaultEnvironment(options.host);
     this.createView = options.createView ?? ((host, callbacks, appearance) => (
-      ReadingRailView.mount(host, callbacks, { appearance })
+      ReadingRailView.mount(host, callbacks, {
+        appearance,
+        sound: this.sound,
+      })
     ));
+  }
+
+  jumpHeading(delta: number): void {
+    if (this.entries.length === 0 || delta === 0) {
+      return;
+    }
+    let nextIndex = this.activeHeadingIndex + Math.sign(delta);
+    if (this.activeHeadingIndex < 0 && delta > 0) {
+      nextIndex = 0;
+    }
+    nextIndex = Math.max(0, Math.min(this.entries.length - 1, nextIndex));
+    const entry = this.entries[nextIndex];
+    if (entry) {
+      this.navigateToHeading(entry, true, false);
+    }
   }
 
   start(): void {
@@ -166,15 +222,14 @@ export class ReadingRailController {
       onProgressDrag: (progress) => this.dragToProgress(progress),
       onProgressDragEnd: (progress) => this.settleDraggedProgress(progress),
       onProgressDragCancel: (progress) => this.cancelDraggedProgress(progress),
+      onWaypointsChange: (waypoints) => this.setWaypoints(waypoints),
     }, this.appearance);
     this.scroller.addEventListener("scroll", this.handleScroll, { passive: true });
     this.scroller.addEventListener("wheel", this.handleManualNavigation, { passive: true });
     this.scroller.addEventListener("touchstart", this.handleManualNavigation, { passive: true });
     this.scroller.addEventListener("pointerdown", this.handleManualNavigation, { passive: true });
 
-    this.resizeObserver = this.environment.createResizeObserver(() => {
-      this.scheduleFrame(true);
-    });
+    this.resizeObserver = this.environment.createResizeObserver(this.handleResize);
     this.resizeObserver.observe(this.host);
     if (this.scroller !== this.host) {
       this.resizeObserver.observe(this.scroller);
@@ -198,6 +253,14 @@ export class ReadingRailController {
       && this.host.clientWidth >= MIN_PANE_WIDTH
       && maxScroll > 0
       && trackHeight > 0;
+    this.scroller.classList.toggle(
+      NATIVE_SCROLLBAR_CLASS,
+      this.host.isConnected && maxScroll > 0 && !visible,
+    );
+    this.host.classList.toggle(
+      RIGHT_ANNOTATION_AVOIDANCE_CLASS,
+      this.preview.querySelector(".crisp-ann-margin-item--right") !== null,
+    );
     const rendered = collectRenderedHeadings(this.preview);
     const unresolvedEntries = buildOutlineEntries(
       this.getHeadings(),
@@ -213,6 +276,7 @@ export class ReadingRailController {
       LABEL_GAP,
     );
 
+    this.view.setWaypoints(this.getWaypoints());
     this.view.setOutline(this.entries, calculateTickCount(trackHeight));
     this.view.setVisible(visible);
     this.updateScrollState();
@@ -245,14 +309,18 @@ export class ReadingRailController {
       this.environment.clearTimeout(this.refreshTimer);
       this.refreshTimer = null;
     }
+    this.cancelResizeRefresh();
     this.resizeObserver?.disconnect();
     this.mutationObserver?.disconnect();
     this.resizeObserver = null;
     this.mutationObserver = null;
+    this.scroller.classList.remove(NATIVE_SCROLLBAR_CLASS);
+    this.host.classList.remove(RIGHT_ANNOTATION_AVOIDANCE_CLASS);
     this.view?.destroy();
     this.view = null;
     this.entries = [];
     this.pendingHeadingLine = null;
+    this.activeHeadingIndex = -1;
     this.dragProgress = null;
     this.lastDragHeadingIndex = null;
   }
@@ -267,6 +335,31 @@ export class ReadingRailController {
     this.lastDragHeadingIndex = null;
     this.cancelNavigation();
     this.cancelProgressSettlement();
+  };
+
+  private readonly handleResize = (): void => {
+    const hostWidth = this.host.clientWidth;
+    const hostHeight = this.host.clientHeight;
+    const scrollerHeight = this.scroller.clientHeight;
+    const widthChanged = hostWidth !== this.observedHostWidth;
+    const heightChanged = hostHeight !== this.observedHostHeight
+      || scrollerHeight !== this.observedScrollerHeight;
+    const crossedVisibilityThreshold = (
+      hostWidth >= MIN_PANE_WIDTH
+    ) !== (
+      this.observedHostWidth >= MIN_PANE_WIDTH
+    );
+
+    this.observedHostWidth = hostWidth;
+    this.observedHostHeight = hostHeight;
+    this.observedScrollerHeight = scrollerHeight;
+
+    if (heightChanged || crossedVisibilityThreshold) {
+      this.cancelResizeRefresh();
+      this.scheduleFrame(true);
+    } else if (widthChanged) {
+      this.scheduleResizeRefresh();
+    }
   };
 
   private scheduleFrame(needsMeasurement: boolean): void {
@@ -301,6 +394,22 @@ export class ReadingRailController {
     }, STRUCTURE_REFRESH_DELAY);
   }
 
+  private scheduleResizeRefresh(): void {
+    this.cancelResizeRefresh();
+    this.resizeRefreshTimer = this.environment.setTimeout(() => {
+      this.resizeRefreshTimer = null;
+      this.scheduleFrame(true);
+    }, RESIZE_REFRESH_DELAY);
+  }
+
+  private cancelResizeRefresh(): void {
+    if (this.resizeRefreshTimer === null) {
+      return;
+    }
+    this.environment.clearTimeout(this.resizeRefreshTimer);
+    this.resizeRefreshTimer = null;
+  }
+
   private updateScrollState(): void {
     if (!this.view) {
       return;
@@ -317,11 +426,12 @@ export class ReadingRailController {
       this.scroller.clientHeight,
     );
     this.view.setProgress(progress);
-    this.view.setActiveHeading(activeHeadingIndex(
+    this.activeHeadingIndex = activeHeadingIndex(
       this.entries,
       this.scroller.scrollTop,
       HEADING_ACTIVATION_OFFSET,
-    ));
+    );
+    this.view.setActiveHeading(this.activeHeadingIndex);
   }
 
   private navigateToHeading(
@@ -361,7 +471,7 @@ export class ReadingRailController {
       this.lastDragHeadingIndex !== null
       && headingIndex !== this.lastDragHeadingIndex
     ) {
-      this.sound?.tick();
+      this.sound?.tick(this.dragProgress);
     }
     this.lastDragHeadingIndex = headingIndex;
     this.cancelNavigation();
@@ -417,19 +527,8 @@ export class ReadingRailController {
     }
     const target = this.getProgressTop(settlement.progress);
     this.scroller.scrollTo({ top: target, behavior: "auto" });
-    settlement.finalFrames += 1;
-    const targetStable = settlement.lastTarget !== null
-      && Math.abs(target - settlement.lastTarget) <= NAVIGATION_SETTLE_TOLERANCE;
-    const positionSettled = Math.abs(this.scroller.scrollTop - target)
-      <= NAVIGATION_SETTLE_TOLERANCE;
-    settlement.stableFrames = targetStable && positionSettled
-      ? settlement.stableFrames + 1
-      : 0;
-    settlement.lastTarget = target;
-    if (
-      settlement.stableFrames >= NAVIGATION_STABLE_FRAMES
-      || settlement.finalFrames >= NAVIGATION_MAX_FINAL_FRAMES
-    ) {
+
+    if (checkSettled(settlement, target, this.scroller.scrollTop)) {
       this.progressSettlement = null;
       return;
     }
@@ -526,19 +625,7 @@ export class ReadingRailController {
       return;
     }
 
-    navigation.finalFrames += 1;
-    const targetStable = navigation.lastTarget !== null
-      && Math.abs(target - navigation.lastTarget) <= NAVIGATION_SETTLE_TOLERANCE;
-    const positionSettled = Math.abs(this.scroller.scrollTop - target)
-      <= NAVIGATION_SETTLE_TOLERANCE;
-    navigation.stableFrames = targetStable && positionSettled
-      ? navigation.stableFrames + 1
-      : 0;
-    navigation.lastTarget = target;
-    if (
-      navigation.stableFrames >= NAVIGATION_STABLE_FRAMES
-      || navigation.finalFrames >= NAVIGATION_MAX_FINAL_FRAMES
-    ) {
+    if (checkSettled(navigation, target, this.scroller.scrollTop)) {
       this.navigation = null;
       return;
     }

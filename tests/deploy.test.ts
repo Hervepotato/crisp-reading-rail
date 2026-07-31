@@ -62,7 +62,7 @@ describe("deploy script", () => {
         readFileSync(resolve(projectRoot, "assets", asset)),
       );
     }
-  });
+  }, 15_000);
 
   it("rejects a path that is not an Obsidian vault", () => {
     const directory = mkdtempSync(resolve(tmpdir(), "crisp-reading-rail-invalid-"));

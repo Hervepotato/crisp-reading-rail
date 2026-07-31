@@ -39,12 +39,60 @@ describe("Crisp Reading Rail styles", () => {
     expect(css).not.toContain("transition: all");
   });
 
+  it("shows replacement sports SVGs without the legacy white ring", () => {
+    const whiteRingBlock = css.match(
+      /\.crisp-reading-rail__orb\[data-orb-style="redball"\]\s*\{([^}]*)\}/,
+    );
+    const transparentBlock = css.match(
+      /\.crisp-reading-rail__orb\[data-orb-style="soccer"\][\s\S]*?\.crisp-reading-rail__orb\[data-orb-style="snorlaxface"\]\s*\{([^}]*)\}/,
+    );
+
+    expect(whiteRingBlock?.[1]).toMatch(/background:\s*#fff/);
+    expect(transparentBlock?.[1]).toMatch(/background:\s*transparent/);
+    expect(transparentBlock?.[1]).toMatch(/box-shadow:\s*none/);
+    expect(transparentBlock?.[1]).not.toMatch(/background:\s*#fff/);
+  });
+
   it("keeps label motion responsive without sticky touch hover", () => {
     expect(css).not.toContain(
       ".crisp-reading-rail:hover .crisp-reading-rail__label",
     );
     expect(css).toMatch(
       /\.crisp-reading-rail \.crisp-reading-rail__label\s*{[\s\S]*?transition:\s*opacity 120ms cubic-bezier\(0\.23, 1, 0\.32, 1\),\s*transform 120ms cubic-bezier\(0\.23, 1, 0\.32, 1\);/,
+    );
+  });
+
+  it("uses compositor-safe settings groups without animated layout properties", () => {
+    expect(css).toContain(".crisp-rr-setting-card");
+    expect(css).not.toContain("grid-template-rows");
+    expect(css).not.toMatch(/transition:[^;]*(?:padding|height|max-height)/);
+    expect(css).toMatch(
+      /\.crisp-rr-setting-card\[open\]\s+\.crisp-rr-setting-card__chevron::after/,
+    );
+  });
+
+  it("keeps waypoint hover restrained and limited to hover-capable pointers", () => {
+    expect(css).toMatch(
+      /\.crisp-reading-rail__waypoint\s*{[\s\S]*?top:\s*calc\(var\(--crisp-reading-waypoint-progress\) \* 100%\);/,
+    );
+    expect(css).toMatch(
+      /@media \(hover: hover\) and \(pointer: fine\)\s*{[\s\S]*?\.crisp-reading-rail__waypoint:hover[\s\S]*?scale:\s*1\.1;/,
+    );
+    expect(css).not.toContain("scale(1.45)");
+  });
+
+  it("celebrates with independent transform properties and honors reduced motion", () => {
+    const celebration = css.match(
+      /@keyframes crisp-orb-celebrate\s*{([\s\S]*?)\n}/,
+    )?.[1] ?? "";
+    expect(celebration).toContain("scale:");
+    expect(celebration).toContain("rotate:");
+    expect(celebration).not.toContain("transform:");
+    expect(css).toMatch(
+      /\.crisp-reading-rail \.crisp-reading-rail__orb\.is-celebrating\s*{[\s\S]*?animation: crisp-orb-celebrate 240ms/,
+    );
+    expect(css).toMatch(
+      /@media \(prefers-reduced-motion: reduce\)[\s\S]*?\.crisp-reading-rail__orb\.is-celebrating[\s\S]*?animation: none;/,
     );
   });
 });

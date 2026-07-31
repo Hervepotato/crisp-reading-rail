@@ -17,6 +17,16 @@
   display: none;
 }
 
+body .crisp-reading-rail-native-scrollbar {
+  scrollbar-width: thin !important;
+}
+
+body .crisp-reading-rail-native-scrollbar::-webkit-scrollbar {
+  display: block !important;
+  width: 8px !important;
+  height: 8px !important;
+}
+
 .crisp-reading-rail .crisp-reading-rail__track {
   position: relative;
   width: 100%;
@@ -142,6 +152,59 @@
   opacity: 0.58;
 }
 
+.crisp-reading-rail .crisp-reading-rail__waypoints {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.crisp-reading-rail .crisp-reading-rail__waypoint {
+  position: absolute;
+  top: calc(var(--crisp-reading-waypoint-progress) * 100%);
+  right: 1px;
+  z-index: 2;
+  display: grid;
+  width: 13px;
+  height: 13px;
+  margin: 0;
+  padding: 0;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: var(--crisp-reading-accent);
+  box-shadow: 0 0 6px color-mix(
+    in srgb,
+    var(--interactive-accent) 45%,
+    transparent
+  );
+  color: var(--text-on-accent, #fff);
+  cursor: pointer;
+  font-family: var(--font-interface);
+  font-size: 8px;
+  line-height: 1;
+  opacity: 0.88;
+  pointer-events: auto;
+  scale: 1;
+  transform: translateY(-50%);
+  transition:
+    opacity 120ms cubic-bezier(0.23, 1, 0.32, 1),
+    scale 120ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.crisp-reading-rail .crisp-reading-rail__waypoint:focus-visible {
+  outline: 1px solid var(--interactive-accent);
+  outline-offset: 2px;
+  opacity: 1;
+  scale: 1.1;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .crisp-reading-rail .crisp-reading-rail__waypoint:hover {
+    opacity: 1;
+    scale: 1.1;
+  }
+}
+
 .crisp-reading-rail .crisp-reading-rail__orb {
   right: 7px;
   display: grid;
@@ -162,6 +225,28 @@
   user-select: none;
 }
 
+@keyframes crisp-orb-celebrate {
+  0%,
+  100% {
+    scale: 1;
+    rotate: 0deg;
+  }
+
+  38% {
+    scale: 1.18;
+    rotate: -6deg;
+  }
+
+  72% {
+    scale: 0.96;
+    rotate: 4deg;
+  }
+}
+
+.crisp-reading-rail .crisp-reading-rail__orb.is-celebrating {
+  animation: crisp-orb-celebrate 240ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
 .crisp-reading-rail .crisp-reading-rail__orb:not([data-orb-style="default"]) {
   width: 18px;
   height: 18px;
@@ -170,10 +255,7 @@
   box-shadow: none;
 }
 
-.crisp-reading-rail .crisp-reading-rail__orb[data-orb-style="soccer"],
-.crisp-reading-rail .crisp-reading-rail__orb[data-orb-style="basketball"],
-.crisp-reading-rail .crisp-reading-rail__orb[data-orb-style="redball"],
-.crisp-reading-rail .crisp-reading-rail__orb[data-orb-style="tennis"] {
+.crisp-reading-rail .crisp-reading-rail__orb[data-orb-style="redball"] {
   background: #fff;
   overflow: hidden;
   box-shadow:
@@ -181,6 +263,9 @@
     0 7px 16px rgba(0, 0, 0, 0.2);
 }
 
+.crisp-reading-rail .crisp-reading-rail__orb[data-orb-style="soccer"],
+.crisp-reading-rail .crisp-reading-rail__orb[data-orb-style="basketball"],
+.crisp-reading-rail .crisp-reading-rail__orb[data-orb-style="tennis"],
 .crisp-reading-rail .crisp-reading-rail__orb[data-orb-style="clown"],
 .crisp-reading-rail .crisp-reading-rail__orb[data-orb-style^="character"],
 .crisp-reading-rail .crisp-reading-rail__orb[data-orb-style="fear"],
@@ -189,9 +274,16 @@
 .crisp-reading-rail .crisp-reading-rail__orb[data-orb-style="gear"],
 .crisp-reading-rail .crisp-reading-rail__orb[data-orb-style="alfresco"],
 .crisp-reading-rail .crisp-reading-rail__orb[data-orb-style="mercedes"],
-.crisp-reading-rail .crisp-reading-rail__orb[data-orb-style="taiga"] {
+.crisp-reading-rail .crisp-reading-rail__orb[data-orb-style="taiga"],
+.crisp-reading-rail .crisp-reading-rail__orb[data-orb-style="shutup"],
+.crisp-reading-rail .crisp-reading-rail__orb[data-orb-style="snorlax"],
+.crisp-reading-rail .crisp-reading-rail__orb[data-orb-style="pikachu"],
+.crisp-reading-rail .crisp-reading-rail__orb[data-orb-style="pokeball"],
+.crisp-reading-rail .crisp-reading-rail__orb[data-orb-style="bracelet"],
+.crisp-reading-rail .crisp-reading-rail__orb[data-orb-style="snorlaxface"] {
   width: 22px;
   height: 22px;
+  background: transparent;
   overflow: visible;
   box-shadow: none;
 }
@@ -264,6 +356,12 @@
   pointer-events: none;
 }
 
+.crisp-reading-rail-avoid-right-annotations
+  .crisp-reading-rail
+  .crisp-reading-rail__labels {
+  display: none;
+}
+
 .crisp-reading-rail .crisp-reading-rail__label {
   position: absolute;
   top: var(--crisp-reading-label-y);
@@ -318,6 +416,162 @@
   opacity: 1;
 }
 
+.crisp-rr-setting-card {
+  margin-bottom: 0.85rem;
+  overflow: clip;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 12px;
+  background: var(--background-secondary);
+  transition:
+    background 180ms cubic-bezier(0.23, 1, 0.32, 1),
+    border-color 180ms cubic-bezier(0.23, 1, 0.32, 1),
+    box-shadow 180ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.crisp-rr-setting-card[open] {
+  border-color: color-mix(
+    in srgb,
+    var(--background-modifier-border) 72%,
+    var(--interactive-accent)
+  );
+  background: var(--background-primary-alt);
+  box-shadow: 0 4px 12px rgb(0 0 0 / 3%);
+}
+
+.crisp-rr-setting-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.85rem 1.15rem;
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+}
+
+.crisp-rr-setting-card__header::-webkit-details-marker {
+  display: none;
+}
+
+.crisp-rr-setting-card__info {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.crisp-rr-setting-card__title {
+  color: var(--text-normal);
+  font-size: 0.95rem;
+  font-weight: 620;
+  line-height: 1.25;
+}
+
+.crisp-rr-setting-card__description {
+  margin-top: 2px;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  line-height: 1.35;
+}
+
+.crisp-rr-setting-card__chevron {
+  display: grid;
+  width: 1.4rem;
+  height: 1.4rem;
+  flex-shrink: 0;
+  place-items: center;
+  border-radius: 50%;
+  color: var(--text-muted);
+}
+
+.crisp-rr-setting-card__chevron::after {
+  width: 7px;
+  height: 7px;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  content: "";
+  rotate: -45deg;
+  transition: rotate 180ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.crisp-rr-setting-card[open] .crisp-rr-setting-card__chevron::after {
+  rotate: 45deg;
+}
+
+.crisp-rr-setting-card__content {
+  padding: 0.5rem 1.15rem 0.75rem;
+  border-top: 1px solid var(--background-modifier-border);
+}
+
+.crisp-rr-setting-card__content .setting-item {
+  padding: 0.65rem 0 !important;
+  border-top: 0 !important;
+  border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.crisp-rr-setting-card__content .setting-item:last-child {
+  border-bottom: 0 !important;
+}
+
+.crisp-rr-setting-card select {
+  max-width: 280px;
+  text-overflow: ellipsis;
+}
+
+.crisp-rr-about {
+  margin-top: 1.25rem;
+  padding: 1rem 1.15rem;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 12px;
+  background:
+    linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--interactive-accent) 7%, transparent),
+      transparent 58%
+    ),
+    var(--background-secondary);
+}
+
+.crisp-rr-about__title,
+.crisp-rr-about__description,
+.crisp-rr-about__author {
+  margin: 0;
+}
+
+.crisp-rr-about__title {
+  color: var(--text-normal);
+  font-size: 0.95rem;
+  font-weight: 650;
+}
+
+.crisp-rr-about__description {
+  margin-top: 0.38rem;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  line-height: 1.5;
+}
+
+.crisp-rr-about__author {
+  margin-top: 0.72rem;
+  color: var(--text-faint);
+  font-size: var(--font-ui-smaller);
+}
+
+.crisp-rr-about__author-link {
+  color: var(--text-accent);
+  font-weight: 550;
+  text-decoration: none;
+}
+
+.crisp-rr-about__author-link:hover {
+  text-decoration: underline;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .crisp-rr-setting-card__header:hover {
+    background: var(--background-modifier-hover);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .crisp-reading-rail .crisp-reading-rail__tick,
   .crisp-reading-rail .crisp-reading-rail__heading-tick,
@@ -333,5 +587,14 @@
   .crisp-reading-rail .crisp-reading-rail__orb.is-dragging
     .crisp-reading-rail__orb-media {
     scale: 1;
+  }
+
+  .crisp-reading-rail .crisp-reading-rail__orb.is-celebrating {
+    animation: none;
+  }
+
+  .crisp-rr-setting-card,
+  .crisp-rr-setting-card__chevron::after {
+    transition: none;
   }
 }

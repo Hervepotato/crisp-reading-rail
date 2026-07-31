@@ -20,7 +20,7 @@ describe("orb styles", () => {
   });
 
   it("exposes the complete approved setting menu", () => {
-    expect(ORB_STYLE_OPTIONS).toHaveLength(22);
+    expect(ORB_STYLE_OPTIONS).toHaveLength(28);
     expect(ORB_STYLE_OPTIONS[0]).toEqual({
       value: "followFileExplorer",
       label: "Follow Crisp File Explorer",
@@ -32,15 +32,43 @@ describe("orb styles", () => {
   });
 
   it("maps every material style to inline SVG or an owned asset", () => {
-    expect(RANDOM_DAILY_ORB_STYLES).toHaveLength(19);
+    expect(RANDOM_DAILY_ORB_STYLES).toHaveLength(25);
 
     for (const style of RANDOM_DAILY_ORB_STYLES) {
       expect(Boolean(INLINE_ORB_SVGS[style] ?? IMAGE_ORB_ASSETS[style])).toBe(true);
     }
 
     expect(STATIC_ORB_STYLES).toEqual(
-      new Set(["character1", "character2", "character3"]),
+      new Set([
+        "character1",
+        "character2",
+        "character3",
+        "snorlax",
+        "pikachu",
+        "snorlaxface",
+      ]),
     );
+  });
+
+  it("uses owned replacement assets and rotates only circular additions", () => {
+    expect(IMAGE_ORB_ASSETS).toMatchObject({
+      soccer: "assets/soccer.svg",
+      basketball: "assets/basketball.svg",
+      tennis: "assets/tennis.svg",
+      shutup: "assets/shut-up.svg",
+      snorlax: "assets/snorlax.svg",
+      pikachu: "assets/pikachu.svg",
+      pokeball: "assets/poke-ball.svg",
+      bracelet: "assets/bracelet.svg",
+      snorlaxface: "assets/snorlax-face.svg",
+    });
+
+    for (const style of ["snorlax", "pikachu", "snorlaxface"] as const) {
+      expect(STATIC_ORB_STYLES.has(style)).toBe(true);
+    }
+    for (const style of ["soccer", "basketball", "tennis", "shutup", "pokeball", "bracelet"] as const) {
+      expect(STATIC_ORB_STYLES.has(style)).toBe(false);
+    }
   });
 
   it("resolves random per day deterministically from the local date", () => {

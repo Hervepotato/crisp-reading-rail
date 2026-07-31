@@ -1,12 +1,14 @@
 // @vitest-environment jsdom
 import { describe, expect, it, vi } from "vitest";
 import { ReadingPaneRegistry } from "../src/pane-registry";
+import type { ReadingRailControllerOptions } from "../src/reading-rail-controller";
 import { MarkdownView } from "obsidian";
 import type { View, WorkspaceLeaf } from "obsidian";
 
 function makeController() {
   return {
     start: vi.fn(),
+    jumpHeading: vi.fn(),
     refresh: vi.fn(),
     refreshAppearance: vi.fn(),
     destroy: vi.fn(),
@@ -194,5 +196,128 @@ describe("ReadingPaneRegistry", () => {
     expect(controllers[0].refreshAppearance).toHaveBeenCalledTimes(1);
     expect(controllers[1].refreshAppearance).toHaveBeenCalledTimes(1);
     expect(factory).toHaveBeenCalledTimes(2);
+  });
+
+  it("routes next and previous heading commands only to the active Reading pane", () => {
+    const views = ["one.md", "two.md"].map((path) => ({
+      file: { path },
+      getMode: () => "preview" as const,
+    }));
+    const leaves = views.map((view) => ({ view })) as unknown as WorkspaceLeaf[];
+    const controllers = [makeController(), makeController()];
+    const registry = new ReadingPaneRegistry(
+      {
+        workspace: {
+          iterateAllLeaves: (callback) => leaves.forEach(callback),
+          getActiveViewOfType: <T extends View>() => views[1] as unknown as T,
+        },
+        metadataCache: { getFileCache: () => ({ headings: [] }) },
+      },
+      {
+        isMarkdownView: (view: View): view is MarkdownView => "getMode" in view,
+        resolveElements: () => ({
+          host: document.createElement("div"),
+          scroller: document.createElement("div"),
+          preview: document.createElement("div"),
+        }),
+        createController: vi.fn()
+          .mockReturnValueOnce(controllers[0])
+          .mockReturnValueOnce(controllers[1]),
+      },
+    );
+    registry.reconcile();
+
+    registry.jumpNextHeading();
+    registry.jumpPreviousHeading();
+
+    expect(controllers[0].jumpHeading).not.toHaveBeenCalled();
+    expect(controllers[1].jumpHeading).toHaveBeenNthCalledWith(1, 1);
+    expect(controllers[1].jumpHeading).toHaveBeenNthCalledWith(2, -1);
+    registry.destroy();
+  });
+
+  it("binds waypoint storage to the pane's current file path", () => {
+    const view = {
+      file: { path: "Notes/First.md" },
+      getMode: () => "preview" as const,
+    };
+    const leaf = { view } as unknown as WorkspaceLeaf;
+    const get = vi.fn((path: string) => path === "Notes/First.md" ? [0.2] : [0.8]);
+    const set = vi.fn();
+    const factory = vi.fn(() => makeController());
+    const registry = new ReadingPaneRegistry(
+      {
+        workspace: { iterateAllLeaves: (callback) => callback(leaf) },
+        metadataCache: { getFileCache: () => ({ headings: [] }) },
+      },
+      {
+        waypoints: { get, set },
+        isMarkdownView: (candidate: View): candidate is MarkdownView => "getMode" in candidate,
+        resolveElements: () => ({
+          host: document.createElement("div"),
+          scroller: document.createElement("div"),
+          preview: document.createElement("div"),
+        }),
+        createController: factory,
+      },
+    );
+    registry.reconcile();
+    const calls = factory.mock.calls as unknown as
+      Array<[ReadingRailControllerOptions]>;
+    const options = calls[0][0];
+
+    expect(options.getWaypoints?.()).toEqual([0.2]);
+    options.setWaypoints?.([0.4]);
+    expect(set).toHaveBeenCalledWith("Notes/First.md", [0.4]);
+
+    view.file.path = "Notes/Second.md";
+    expect(options.getWaypoints?.()).toEqual([0.8]);
+    registry.destroy();
+  });
+
+  it("exposes the visible label of a Markdown-linked heading", () => {
+    const view = {
+      file: { path: "linked-heading.md" },
+      getMode: () => "preview" as const,
+    };
+    const leaf = { view } as unknown as WorkspaceLeaf;
+    const factory = vi.fn(() => makeController());
+    const registry = new ReadingPaneRegistry(
+      {
+        workspace: { iterateAllLeaves: (callback) => callback(leaf) },
+        metadataCache: {
+          getFileCache: () => ({
+            headings: [{
+              heading: "[Reference guide](https://example.com/docs)",
+              level: 2,
+              position: {
+                start: { line: 4, col: 0, offset: 20 },
+                end: { line: 4, col: 52, offset: 72 },
+              },
+            }],
+          }),
+        },
+      },
+      {
+        isMarkdownView: (candidate: View): candidate is MarkdownView => "getMode" in candidate,
+        resolveElements: () => ({
+          host: document.createElement("div"),
+          scroller: document.createElement("div"),
+          preview: document.createElement("div"),
+        }),
+        createController: factory,
+      },
+    );
+
+    registry.reconcile();
+    const calls = factory.mock.calls as unknown as
+      Array<[ReadingRailControllerOptions]>;
+
+    expect(calls[0][0].getHeadings()).toEqual([{
+      text: "Reference guide",
+      level: 2,
+      sourceLine: 4,
+    }]);
+    registry.destroy();
   });
 });

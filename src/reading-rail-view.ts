@@ -4,6 +4,7 @@ import {
   isWithinWaveRadius,
   stepSpring,
 } from "./motion";
+import type { RailSoundProvider } from "./audio-feedback";
 import {
   IMAGE_ORB_ASSETS,
   INLINE_ORB_SVGS,
@@ -14,6 +15,7 @@ import {
 } from "./orb-styles";
 import { resolveVariableLabelPositions } from "./outline-model";
 import { clamp01, progressFromPointer } from "./progress";
+import { normalizeWaypoints } from "./settings";
 import type { OutlineEntry } from "./types";
 
 const PROXIMITY_DISTANCE = 96;
@@ -33,6 +35,7 @@ export interface RailViewCallbacks {
   onProgressDrag?(progress: number): void;
   onProgressDragEnd?(progress: number): void;
   onProgressDragCancel?(progress: number): void;
+  onWaypointsChange?(waypoints: readonly number[]): void;
 }
 
 export interface RailAppearanceProvider {
@@ -50,6 +53,7 @@ export interface RailViewEnvironment {
 export interface ReadingRailViewOptions {
   appearance?: RailAppearanceProvider;
   environment?: RailViewEnvironment;
+  sound?: RailSoundProvider;
 }
 
 const DEFAULT_APPEARANCE: RailAppearanceProvider = {
@@ -67,12 +71,14 @@ export class ReadingRailView {
   private readonly ticksContainer: HTMLElement;
   private readonly headingTicksContainer: HTMLElement;
   private readonly active: HTMLElement;
+  private readonly waypointsContainer: HTMLElement;
   private readonly orb: HTMLElement;
   private readonly progressLabel: HTMLElement;
   private readonly labelsContainer: HTMLElement;
   private readonly callbacks: RailViewCallbacks;
   private readonly appearance: RailAppearanceProvider;
   private readonly environment: RailViewEnvironment;
+  private readonly sound?: RailSoundProvider;
   private ticks: HTMLElement[] = [];
   private tickYPositions: number[] = [];
   private tickWaveOffsets: number[] = [];
@@ -80,6 +86,8 @@ export class ReadingRailView {
   private headingTickYPositions: number[] = [];
   private headingTickWaveOffsets: number[] = [];
   private labels: HTMLButtonElement[] = [];
+  private waypointButtons: HTMLButtonElement[] = [];
+  private waypoints: number[] = [];
   private entries: OutlineEntry[] = [];
   private activeHeadingIndex = -1;
   private lastReadTickIndex = Number.MIN_SAFE_INTEGER;
@@ -104,6 +112,7 @@ export class ReadingRailView {
   private orbMedia: HTMLElement | null = null;
   private resolvedOrbStyle: ResolvedOrbStyle = "default";
   private needsLabelLayout = false;
+  private hasCelebratedCompletion = false;
   private destroyed = false;
 
   private constructor(
@@ -120,6 +129,7 @@ export class ReadingRailView {
     this.window = window;
     this.callbacks = callbacks;
     this.appearance = options.appearance ?? DEFAULT_APPEARANCE;
+    this.sound = options.sound;
     this.environment = options.environment ?? {
       requestAnimationFrame: (callback) => window.requestAnimationFrame(callback),
       cancelAnimationFrame: (id) => window.cancelAnimationFrame(id),
@@ -140,6 +150,10 @@ export class ReadingRailView {
     this.track.setAttribute("aria-valuemin", "0");
     this.track.setAttribute("aria-valuemax", "100");
     this.track.setAttribute("aria-valuenow", "0");
+    this.track.setAttribute(
+      "aria-description",
+      "Click to navigate. Double-click or press M to save a reading waypoint.",
+    );
 
     this.line = document.createElement("div");
     this.line.className = "crisp-reading-rail__line";
@@ -161,6 +175,9 @@ export class ReadingRailView {
     this.active.className = "crisp-reading-rail__active";
     this.active.setAttribute("aria-hidden", "true");
 
+    this.waypointsContainer = document.createElement("div");
+    this.waypointsContainer.className = "crisp-reading-rail__waypoints";
+
     this.orb = document.createElement("div");
     this.orb.className = "crisp-reading-rail__orb";
     this.orb.setAttribute("aria-hidden", "true");
@@ -178,6 +195,7 @@ export class ReadingRailView {
       this.ticksContainer,
       this.headingTicksContainer,
       this.active,
+      this.waypointsContainer,
       this.orb,
       this.progressLabel,
     );
@@ -185,8 +203,10 @@ export class ReadingRailView {
     host.append(this.root);
 
     this.track.addEventListener("pointerdown", this.handlePointerDown);
+    this.track.addEventListener("dblclick", this.handleTrackDoubleClick);
     this.track.addEventListener("keydown", this.handleKeyDown);
     this.orb.addEventListener("pointerdown", this.handleOrbPointerDown);
+    this.orb.addEventListener("animationend", this.handleCelebrationEnd);
     this.host.addEventListener("pointermove", this.handlePointerMove, { passive: true });
     this.host.addEventListener("pointerleave", this.handlePointerLeave);
     this.root.addEventListener("focusin", this.handleFocusIn);
@@ -300,6 +320,11 @@ export class ReadingRailView {
     this.scheduleAnimation();
   }
 
+  setWaypoints(waypoints: readonly number[]): void {
+    this.waypoints = normalizeWaypoints(waypoints);
+    this.renderWaypoints();
+  }
+
   setActiveHeading(index: number): void {
     const nextIndex = index >= 0 && index < this.entries.length ? index : -1;
     if (nextIndex === this.activeHeadingIndex) {
@@ -379,8 +404,10 @@ export class ReadingRailView {
       this.orbImage = null;
     }
     this.track.removeEventListener("pointerdown", this.handlePointerDown);
+    this.track.removeEventListener("dblclick", this.handleTrackDoubleClick);
     this.track.removeEventListener("keydown", this.handleKeyDown);
     this.orb.removeEventListener("pointerdown", this.handleOrbPointerDown);
+    this.orb.removeEventListener("animationend", this.handleCelebrationEnd);
     this.host.removeEventListener("pointermove", this.handlePointerMove);
     this.host.removeEventListener("pointerleave", this.handlePointerLeave);
     this.root.removeEventListener("focusin", this.handleFocusIn);
@@ -391,6 +418,8 @@ export class ReadingRailView {
     this.headingTicks = [];
     this.headingTickWaveOffsets = [];
     this.labels = [];
+    this.waypointButtons = [];
+    this.waypoints = [];
     this.entries = [];
   }
 
@@ -541,37 +570,37 @@ export class ReadingRailView {
       return;
     }
 
-    const inlineSvg = INLINE_ORB_SVGS[style];
-    if (inlineSvg) {
+    const assetPath = IMAGE_ORB_ASSETS[style];
+    if (assetPath) {
       const wrapper = this.root.ownerDocument.createElement("span");
       wrapper.className = "crisp-reading-rail__orb-media";
-      wrapper.innerHTML = inlineSvg;
+      const image = this.root.ownerDocument.createElement("img");
+      image.className = "crisp-reading-rail__orb-image";
+      image.alt = "";
+      image.draggable = false;
+      image.src = this.appearance.getAssetUrl(assetPath);
+      image.onerror = () => {
+        if (this.orbImage === image) {
+          this.applyOrbStyle("default");
+        }
+      };
+      wrapper.append(image);
       this.orb.append(wrapper);
+      this.orbImage = image;
       this.orbMedia = wrapper;
       this.renderPosition();
       return;
     }
 
-    const assetPath = IMAGE_ORB_ASSETS[style];
-    if (!assetPath) {
+    const inlineSvg = INLINE_ORB_SVGS[style];
+    if (!inlineSvg) {
       this.applyOrbStyle("default");
       return;
     }
     const wrapper = this.root.ownerDocument.createElement("span");
     wrapper.className = "crisp-reading-rail__orb-media";
-    const image = this.root.ownerDocument.createElement("img");
-    image.className = "crisp-reading-rail__orb-image";
-    image.alt = "";
-    image.draggable = false;
-    image.src = this.appearance.getAssetUrl(assetPath);
-    image.onerror = () => {
-      if (this.orbImage === image) {
-        this.applyOrbStyle("default");
-      }
-    };
-    wrapper.append(image);
+    wrapper.innerHTML = inlineSvg;
     this.orb.append(wrapper);
-    this.orbImage = image;
     this.orbMedia = wrapper;
     this.renderPosition();
   }
@@ -666,8 +695,10 @@ export class ReadingRailView {
     if (
       event.isPrimary === false
       || event.button !== 0
+      || event.detail > 1
       || (event.target as Element | null)?.closest(
-        ".crisp-reading-rail__label, .crisp-reading-rail__orb",
+        ".crisp-reading-rail__label, .crisp-reading-rail__orb, "
+        + ".crisp-reading-rail__waypoint",
       )
     ) {
       return;
@@ -683,6 +714,25 @@ export class ReadingRailView {
       true,
       true,
     );
+  };
+
+  private readonly handleTrackDoubleClick = (event: MouseEvent): void => {
+    if (
+      event.button !== 0
+      || (event.target as Element | null)?.closest(
+        ".crisp-reading-rail__label, .crisp-reading-rail__orb, "
+        + ".crisp-reading-rail__waypoint",
+      )
+    ) {
+      return;
+    }
+    const bounds = this.track.getBoundingClientRect();
+    if (bounds.height <= 0) {
+      return;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    this.addWaypoint(progressFromPointer(event.clientY, bounds.top, bounds.height));
   };
 
   private readonly handleOrbPointerDown = (event: PointerEvent): void => {
@@ -789,6 +839,12 @@ export class ReadingRailView {
       return;
     }
 
+    if (event.key.toLowerCase() === "m") {
+      event.preventDefault();
+      this.addWaypoint(this.currentProgress);
+      return;
+    }
+
     const changes: Record<string, number> = {
       ArrowDown: 0.01,
       ArrowLeft: -0.01,
@@ -813,6 +869,15 @@ export class ReadingRailView {
     this.updateProgressState(next);
     this.snapToTarget();
     this.callbacks.onProgressSelect(next, false, false);
+  };
+
+  private readonly handleCelebrationEnd = (event: AnimationEvent): void => {
+    if (
+      event.target === this.orb
+      && event.animationName === "crisp-orb-celebrate"
+    ) {
+      this.orb.classList.remove("is-celebrating");
+    }
   };
 
   private hasCompanionMutation(records: readonly MutationRecord[]): boolean {
@@ -877,5 +942,80 @@ export class ReadingRailView {
       this.lastProgressPercentage = percentage;
     }
     this.updateReadTicks();
+    if (this.currentProgress >= 0.985 && !this.hasCelebratedCompletion) {
+      this.hasCelebratedCompletion = true;
+      this.sound?.completionChime?.();
+      if (!this.environment.reducedMotion()) {
+        this.orb.classList.add("is-celebrating");
+      }
+    } else if (this.currentProgress < 0.85) {
+      this.hasCelebratedCompletion = false;
+      this.orb.classList.remove("is-celebrating");
+    }
+  }
+
+  private renderWaypoints(): void {
+    const document = this.root.ownerDocument;
+    this.waypointButtons = this.waypoints.map((progress) => {
+      const percentage = Math.round(progress * 100);
+      const waypoint = document.createElement("button");
+      waypoint.type = "button";
+      waypoint.className = "crisp-reading-rail__waypoint";
+      waypoint.dataset.progress = progress.toString();
+      waypoint.style.setProperty("--crisp-reading-waypoint-progress", progress.toString());
+      waypoint.textContent = "★";
+      waypoint.setAttribute(
+        "aria-label",
+        `Reading waypoint at ${percentage} percent`,
+      );
+      waypoint.title = "Click to jump. Right-click or press Delete to remove.";
+      waypoint.addEventListener("click", (event) => {
+        event.stopPropagation();
+        const pointerActivated = event.detail > 0;
+        this.callbacks.onProgressSelect(
+          progress,
+          pointerActivated,
+          pointerActivated,
+        );
+      });
+      waypoint.addEventListener("contextmenu", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        this.removeWaypoint(progress);
+      });
+      waypoint.addEventListener("keydown", (event) => {
+        if (event.key !== "Delete" && event.key !== "Backspace") {
+          return;
+        }
+        event.preventDefault();
+        event.stopPropagation();
+        this.removeWaypoint(progress);
+      });
+      return waypoint;
+    });
+    this.waypointsContainer.replaceChildren(...this.waypointButtons);
+  }
+
+  private addWaypoint(progress: number): void {
+    const next = normalizeWaypoints([...this.waypoints, progress]);
+    if (
+      next.length === this.waypoints.length
+      && next.every((value, index) => value === this.waypoints[index])
+    ) {
+      return;
+    }
+    this.waypoints = next;
+    this.renderWaypoints();
+    this.callbacks.onWaypointsChange?.([...this.waypoints]);
+  }
+
+  private removeWaypoint(progress: number): void {
+    const next = this.waypoints.filter((waypoint) => waypoint !== progress);
+    if (next.length === this.waypoints.length) {
+      return;
+    }
+    this.waypoints = next;
+    this.renderWaypoints();
+    this.callbacks.onWaypointsChange?.([...this.waypoints]);
   }
 }

@@ -45,9 +45,12 @@ function makeFixture(width = 900) {
 
 function makeEnvironment() {
   let nextFrame = 1;
+  let nextTimer = 1;
   const frames = new Map<number, FrameRequestCallback>();
+  const timers = new Map<number, () => void>();
   const cancelledFrames: number[] = [];
   const observers: Array<{ disconnect: ReturnType<typeof vi.fn> }> = [];
+  const resizeCallbacks: Array<() => void> = [];
   let frameRequests = 0;
   const environment: RailControllerEnvironment = {
     requestAnimationFrame(callback) {
@@ -61,11 +64,15 @@ function makeEnvironment() {
       frames.delete(id);
     },
     setTimeout(callback) {
-      callback();
-      return 1;
+      const id = nextTimer++;
+      timers.set(id, callback);
+      return id;
     },
-    clearTimeout: vi.fn(),
-    createResizeObserver: vi.fn(() => {
+    clearTimeout(id) {
+      timers.delete(id);
+    },
+    createResizeObserver: vi.fn((callback) => {
+      resizeCallbacks.push(callback);
       const observer = { observe: vi.fn(), disconnect: vi.fn() };
       observers.push(observer);
       return observer;
@@ -96,6 +103,14 @@ function makeEnvironment() {
         this.flushFrame(timestamp);
       }
     },
+    flushTimers() {
+      const callbacks = [...timers.values()];
+      timers.clear();
+      callbacks.forEach((callback) => callback());
+    },
+    triggerResize() {
+      resizeCallbacks.forEach((callback) => callback());
+    },
     pendingFrameId() {
       return frames.keys().next().value as number | undefined;
     },
@@ -111,6 +126,7 @@ function makeView(): RailView & {
     setOutline: vi.fn(),
     setProgress: vi.fn(),
     setActiveHeading: vi.fn(),
+    setWaypoints: vi.fn(),
     setExpanded: vi.fn(),
     setVisible(visible) {
       this.visible = visible;
@@ -136,6 +152,24 @@ describe("collectRenderedHeadings", () => {
     expect(collectRenderedHeadings(container).map((item) => item.text)).toEqual([
       "First",
       "Detail",
+    ]);
+  });
+
+  it("excludes Crisp Annotations notes from rendered heading text", () => {
+    const container = document.createElement("div");
+    container.innerHTML = `
+      <h3>
+        <span class="heading-collapse-indicator">Toggle</span>
+        <span class="crisp-ann crisp-ann--right">
+          <mark class="crisp-ann__target">How a GPU works</mark>
+          <span class="crisp-ann__label" role="note">GPU是如何工作的</span>
+          <svg class="crisp-ann-margin-connectors"><text>Connector</text></svg>
+        </span>
+      </h3>
+    `;
+
+    expect(collectRenderedHeadings(container).map((item) => item.text)).toEqual([
+      "How a GPU works",
     ]);
   });
 });
@@ -176,6 +210,147 @@ describe("ReadingRailController", () => {
     expect(clock.cancelledFrames).toContain(pendingFrameId);
     expect(clock.observers.every((observer) => observer.disconnect.mock.calls.length === 1)).toBe(true);
     expect(view.destroy).toHaveBeenCalledTimes(1);
+  });
+
+  it("waits for repeated width-only resizes to settle before rebuilding the outline", () => {
+    const { host, scroller } = makeFixture();
+    const clock = makeEnvironment();
+    const view = makeView();
+    const controller = new ReadingRailController({
+      host,
+      scroller,
+      preview: scroller,
+      getHeadings: () => [],
+      environment: clock.environment,
+      createView: () => view,
+    });
+
+    controller.start();
+    clock.flushFrame();
+    expect(view.setOutline).toHaveBeenCalledTimes(1);
+
+    for (const width of [880, 860, 840]) {
+      setMetric(host, "clientWidth", width);
+      clock.triggerResize();
+      clock.flushFrame();
+    }
+    expect(view.setOutline).toHaveBeenCalledTimes(1);
+
+    clock.flushTimers();
+    clock.flushFrame();
+    expect(view.setOutline).toHaveBeenCalledTimes(2);
+    controller.destroy();
+  });
+
+  it("rebuilds the outline on the next frame when pane height changes", () => {
+    const { host, scroller } = makeFixture();
+    const clock = makeEnvironment();
+    const view = makeView();
+    const controller = new ReadingRailController({
+      host,
+      scroller,
+      preview: scroller,
+      getHeadings: () => [],
+      environment: clock.environment,
+      createView: () => view,
+    });
+
+    controller.start();
+    clock.flushFrame();
+    setMetric(host, "clientHeight", 720);
+    setMetric(scroller, "clientHeight", 720);
+    clock.triggerResize();
+    clock.flushFrame();
+
+    expect(view.setOutline).toHaveBeenCalledTimes(2);
+    controller.destroy();
+  });
+
+  it("updates visibility immediately when width crosses the pane threshold", () => {
+    const { host, scroller } = makeFixture(700);
+    const clock = makeEnvironment();
+    const view = makeView();
+    const controller = new ReadingRailController({
+      host,
+      scroller,
+      preview: scroller,
+      getHeadings: () => [],
+      environment: clock.environment,
+      createView: () => view,
+    });
+
+    controller.start();
+    clock.flushFrame();
+    expect(view.visible).toBe(true);
+
+    setMetric(host, "clientWidth", 660);
+    clock.triggerResize();
+    clock.flushFrame();
+
+    expect(view.visible).toBe(false);
+    controller.destroy();
+  });
+
+  it("restores a native scroll indicator while a scrollable pane is too narrow for the rail", () => {
+    const { host, scroller } = makeFixture(700);
+    const clock = makeEnvironment();
+    const view = makeView();
+    const controller = new ReadingRailController({
+      host,
+      scroller,
+      preview: scroller,
+      getHeadings: () => [],
+      environment: clock.environment,
+      createView: () => view,
+    });
+
+    controller.start();
+    clock.flushFrame();
+    expect(scroller.classList.contains(
+      "crisp-reading-rail-native-scrollbar",
+    )).toBe(false);
+
+    setMetric(host, "clientWidth", 660);
+    controller.refresh();
+    expect(scroller.classList.contains(
+      "crisp-reading-rail-native-scrollbar",
+    )).toBe(true);
+
+    controller.destroy();
+    expect(scroller.classList.contains(
+      "crisp-reading-rail-native-scrollbar",
+    )).toBe(false);
+  });
+
+  it("suppresses expanded rail labels when right-margin annotations occupy the pane", () => {
+    const { host, scroller } = makeFixture();
+    const rightMarginNote = document.createElement("span");
+    rightMarginNote.className = "crisp-ann-margin-item--right";
+    scroller.append(rightMarginNote);
+    const clock = makeEnvironment();
+    const view = makeView();
+    const controller = new ReadingRailController({
+      host,
+      scroller,
+      preview: scroller,
+      getHeadings: () => [],
+      environment: clock.environment,
+      createView: () => view,
+    });
+
+    controller.start();
+    clock.flushFrame();
+    expect(host.classList.contains(
+      "crisp-reading-rail-avoid-right-annotations",
+    )).toBe(true);
+
+    rightMarginNote.remove();
+    controller.refresh();
+    expect(host.classList.contains(
+      "crisp-reading-rail-avoid-right-annotations",
+    )).toBe(false);
+
+    controller.destroy();
   });
 
   it("navigates proportionally and honors reduced motion", () => {
@@ -495,5 +670,114 @@ describe("ReadingRailController", () => {
     expect(view.refreshAppearance).toHaveBeenCalledTimes(1);
     expect(scroller.scrollTo).not.toHaveBeenCalled();
     expect(view.destroy).not.toHaveBeenCalled();
+  });
+
+  it("loads persisted waypoints and forwards edits to the note store", () => {
+    const { host, scroller } = makeFixture();
+    const clock = makeEnvironment();
+    const view = makeView();
+    const setWaypoints = vi.fn();
+    const controller = new ReadingRailController({
+      host,
+      scroller,
+      preview: scroller,
+      getHeadings: () => [],
+      getWaypoints: () => [0.2, 0.8],
+      setWaypoints,
+      environment: clock.environment,
+      createView: (_host, callbacks) => {
+        view.callbacks = callbacks;
+        return view;
+      },
+    });
+
+    controller.start();
+    clock.flushFrame();
+    expect(view.setWaypoints).toHaveBeenCalledWith([0.2, 0.8]);
+
+    view.callbacks?.onWaypointsChange?.([0.4]);
+    expect(setWaypoints).toHaveBeenCalledWith([0.4]);
+    controller.destroy();
+  });
+
+  it("passes drag progress into styled sound feedback", () => {
+    const { host, scroller } = makeFixture();
+    const clock = makeEnvironment();
+    const view = makeView();
+    const sound = { tick: vi.fn(), settle: vi.fn() };
+    const controller = new ReadingRailController({
+      host,
+      scroller,
+      preview: scroller,
+      getHeadings: () => [
+        { text: "First", level: 2, sourceLine: 10 },
+        { text: "Second", level: 2, sourceLine: 20 },
+      ],
+      getLineCount: () => 30,
+      sound,
+      environment: clock.environment,
+      createView: (_host, callbacks) => {
+        view.callbacks = callbacks;
+        return view;
+      },
+    });
+
+    controller.start();
+    clock.flushFrame();
+    view.callbacks?.onProgressDrag?.(0.1);
+    view.callbacks?.onProgressDrag?.(0.7);
+
+    expect(sound.tick).toHaveBeenLastCalledWith(0.7);
+    controller.destroy();
+  });
+
+  it("jumps to the next and previous outline heading through public commands", () => {
+    const { host, scroller } = makeFixture();
+    const first = document.createElement("h2");
+    first.textContent = "First";
+    first.getBoundingClientRect = () => ({
+      top: 200 - scroller.scrollTop,
+      left: 0, right: 0, bottom: 220 - scroller.scrollTop,
+      width: 0, height: 20, x: 0, y: 200 - scroller.scrollTop,
+      toJSON: () => ({}),
+    });
+    const second = document.createElement("h2");
+    second.textContent = "Second";
+    second.getBoundingClientRect = () => ({
+      top: 700 - scroller.scrollTop,
+      left: 0, right: 0, bottom: 720 - scroller.scrollTop,
+      width: 0, height: 20, x: 0, y: 700 - scroller.scrollTop,
+      toJSON: () => ({}),
+    });
+    scroller.append(first, second);
+    const clock = makeEnvironment();
+    clock.environment.reducedMotion = () => true;
+    const controller = new ReadingRailController({
+      host,
+      scroller,
+      preview: scroller,
+      getHeadings: () => [
+        { text: "First", level: 2, sourceLine: 10 },
+        { text: "Second", level: 2, sourceLine: 20 },
+      ],
+      getLineCount: () => 30,
+      environment: clock.environment,
+    });
+
+    controller.start();
+    clock.flushFrame();
+    controller.jumpHeading(1);
+    expect(scroller.scrollTop).toBe(200);
+
+    scroller.dispatchEvent(new Event("scroll"));
+    clock.flushFrame();
+    controller.jumpHeading(1);
+    expect(scroller.scrollTop).toBe(700);
+
+    scroller.dispatchEvent(new Event("scroll"));
+    clock.flushFrame();
+    controller.jumpHeading(-1);
+    expect(scroller.scrollTop).toBe(200);
+    controller.destroy();
   });
 });

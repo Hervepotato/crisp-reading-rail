@@ -2,9 +2,15 @@
 
 Crisp Reading Rail adds a compact reading-progress and heading-navigation rail to the right edge of each eligible Obsidian Markdown Reading view. Its proportional heading marks, orb-centered focus line, animated wave, and optional orbs sit alongside the visual language of Crisp File Explorer without occupying Obsidian's native right sidebar.
 
-## v0.3.6 behavior
+## v0.3.15 behavior
+
+- Adds `About Crisp Reading Rail` to the bottom of the settings page with the
+  plugin's core purpose and the linked author attribution.
 
 - Works in Markdown Reading view on desktop Obsidian.
+- Defers width-only outline measurements until pane resizing settles, while keeping height changes and the 680 px visibility threshold responsive.
+- Displays Crisp Annotations headings by their annotated target text while excluding annotation notes and directives from the rail label.
+- Displays Markdown links and aliased Obsidian wiki links as their visible heading labels, matching Reading view instead of exposing link syntax or destinations.
 - Shows borderless progress from `0.00` to `1.00`, completed-tick state, content-proportional H2-H4 marks, and a spring-following current-position orb.
 - Uses only a short, fading line centered on the orb; there is no persistent full-height vertical rule.
 - Bends nearby fine and heading marks leftward in a natural wave while scrolling. Reduced-motion mode snaps directly to the reading position.
@@ -15,18 +21,24 @@ Crisp Reading Rail adds a compact reading-progress and heading-navigation rail t
 - Follows Crisp File Explorer orb changes without reacting to its own DOM mutations, including when the companion orb loads later.
 - Clicking a label glides to its heading with the orb aligned to the same heading mark. Clicking the track jumps to the corresponding document position.
 - Dragging the orb scrubs the document continuously and stays locked to the pointer even while Obsidian virtualizes a long note.
+- Double-clicking the track, or pressing `M` while the slider is focused, saves a reading waypoint for the current note. Waypoints persist across reloads and support click, keyboard activation, keyboard deletion, and context-menu deletion.
+- Saved waypoints follow note or folder renames and are removed when their note or parent folder is deleted.
+- Reaching the end of a note plays an optional completion chime and uses a short position-safe celebration that respects reduced-motion preferences.
+- Adds Obsidian commands for next heading, previous heading, navigation-sound toggle, and orb-style cycling without assigning global hotkeys.
 - Hides when the pane is narrower than 680 px or the note does not scroll.
+- Restores a narrow native scrollbar when the pane is scrollable but too narrow to show the rail, including themes that globally hide scrollbars.
+- Keeps its heading labels collapsed while Crisp Annotations occupies the right margin, leaving the progress track and orb available without covering notes.
 - Gives every side-by-side Reading pane an independent rail.
 
 ## Orb style setting
 
-Open **Settings → Crisp Reading Rail → Orb style** to choose Default, Random per day, 19 material/character styles, or **Follow Crisp File Explorer**. Follow mode observes only the companion orb's live `data-orb-style` value in the same Obsidian window; if it is unavailable, the rail uses Default.
+Open **Settings → Crisp Reading Rail → Orb style** to choose Default, Random per day, 25 material/character styles, or **Follow Crisp File Explorer**. Follow mode observes only the companion orb's live `data-orb-style` value in the same Obsidian window; if it is unavailable, the rail uses Default.
 
 All SVG and PNG resources used by Crisp Reading Rail are installed in this plugin's own `assets/` directory. It does not read Crisp File Explorer's files or private settings at runtime.
 
 ## Navigation sound setting
 
-Open **Settings → Crisp Reading Rail → Navigation sound** to opt into very soft interaction feedback. Sound is off by default. When enabled, dragging across heading marks produces rate-limited quiet ticks, while track clicks, heading selections, and normal drag release use a subtle settle tone.
+Open **Settings → Crisp Reading Rail → Navigation sound** to opt into very soft interaction feedback. Sound is off by default. When enabled, dragging across heading marks produces rate-limited quiet ticks, while track clicks, heading selections, and normal drag release use a subtle settle tone. Sound style can be selected independently or follow Crisp File Explorer; release/settle feedback can be muted separately.
 
 Normal wheel, touchpad, touch, keyboard, and programmatic scrolling remains silent. Sounds are synthesized locally with Web Audio; the plugin contains no audio files and makes no network requests.
 
@@ -37,7 +49,9 @@ Focus the rail's single reading-position slider, then use:
 - Arrow keys to move by 1%.
 - Page Up and Page Down to move by 10%.
 - Home and End to move to the beginning or end.
+- M to save a waypoint at the current reading position.
 - Tab to reach visible native heading buttons.
+- Delete or Backspace to remove a focused waypoint.
 
 Keyboard handling is local to the focused rail. The plugin does not register default hotkeys, intercept Obsidian shortcuts globally, or play navigation sounds for slider key presses. Reduced-motion preferences replace smooth navigation with immediate movement.
 

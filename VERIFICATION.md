@@ -1,5 +1,248 @@
 # Crisp Reading Rail verification
 
+## v0.3.14 Border and Crisp Annotations coexistence
+
+Verified on 2026-07-28 with Obsidian Desktop 1.12.7 in the ALL and YS vaults.
+
+### Narrow-pane fallback
+
+- Reproduced the Border Style Settings state with `Components@@scrollbar-hide` enabled.
+- Forced the active YS Reading pane from 1494.5 px to 660 px while the note remained scrollable.
+- The rail hid at its 680 px threshold, the preview gained `crisp-reading-rail-native-scrollbar`, and the computed `scrollbar-width` became `thin`.
+- Restoring the pane width made the rail visible again and removed the fallback class.
+
+### Crisp Annotations coexistence
+
+- Temporarily exercised Crisp Annotations' right-margin layout without saving the setting.
+- A 1494.5 px pane with 317.25 px of right margin rendered three right-margin annotations while reserving the visible rail's 40 px footprint plus an 8 px safety gap.
+- The pane gained `crisp-reading-rail-avoid-right-annotations`, the rail heading-label container computed to `display: none`, and all three annotation labels had zero overlap with the rail.
+- Returning Annotations to Inline removed the avoidance class and restored the rail labels.
+
+### Automated gate
+
+- Crisp Reading Rail: `npm run check` passed with 13 test files and 105 tests, followed by ESLint, TypeScript, and a production build.
+- Crisp Annotations: `npm run check` passed with 14 test files and 85 tests, followed by ESLint, TypeScript, and a production build.
+- Both regressions were observed failing before the production fixes and passed afterward.
+
+### Live Obsidian acceptance
+
+- ALL loaded Crisp Reading Rail `0.3.14` and Crisp Annotations `1.4.2`, with one live rail and no captured errors.
+- YS loaded Crisp Reading Rail `0.3.14` and Crisp Annotations `1.4.2`, with one live rail and no captured errors after interaction probes.
+- The YS annotation layout was restored to its original Inline value and the active Markdown view remained in Reading mode.
+
+### Deployment integrity
+
+The repository build and both installed Reading Rail runtimes matched byte for byte:
+
+```text
+main.js       4440008953670e5aebcd572b0e39b7507dc5b01d20569ea37859a802edc8499d
+manifest.json d25cfc11a819751771ce7bbf257ef72ed7f37c91bc0a9d0cd97eb94b9b57affe
+styles.css    b330c78bb9fc69a60c0fadea84e7983860e36d6ba74c478eaec89aa8686eb2b8
+assets/       identical in source, ALL, and YS
+```
+
+Annotations runtime files also matched between ALL and YS. Deployment preserved all four pre-deploy `data.json` hashes for Annotations and Reading Rail in both vaults.
+
+## v0.3.13 Waypoint Path Integrity
+
+Verified on 2026-07-28 with Obsidian Desktop 1.12.7 in the ALL and YS vaults.
+
+### Waypoint path integrity
+
+- Migrated saved waypoints when a note or its parent folder is renamed.
+- Removed saved waypoints when a note or its parent folder is deleted.
+- Merged, normalized, sorted, and deduplicated waypoint lists when multiple old paths converge on the same destination.
+- Registered the migration through Obsidian's vault rename and delete events without rewriting note content.
+
+### Automated gate
+
+`npm run check` passed with 13 test files and 103 tests. Vitest, ESLint, TypeScript, the production esbuild bundle, `node --check main.js`, manifest/package/version consistency, and `git diff --check` all passed.
+
+The new regression first failed because the waypoint-path rewrite helper did not exist, then passed for note renames, folder renames, deletions, collision merging, and unrelated paths after the production implementation.
+
+### Live Obsidian acceptance
+
+- ALL loaded `0.3.13`, exposed one live Reading rail, survived an independent disable/enable cycle with complete DOM cleanup, and reported no captured errors.
+- YS loaded `0.3.13`, exposed one live Reading rail, and reported no captured errors.
+- Crisp Annotations `1.4.1`, Crisp File Explorer `0.2.35`, and Crisp Focus `1.1.1` were loaded alongside the rail in both vaults during the compatibility check.
+
+### Deployment integrity
+
+The repository build and both installed runtimes matched byte for byte:
+
+```text
+main.js       5054bc7f2a54a9000c0c02bfc42cb9f1d998bf45fa2a2786f4cebff438c86a91
+manifest.json 6413789932cb3940bdcd19ee8fb4b566fefc094609b1d4b23d3e49bba7c783cf
+styles.css    a47d5743a939814d091d293d3f5c3589dbb1ca1e8ac9fd8d6074b5af304df4df
+assets/       19 files, identical in source, ALL, and YS
+```
+
+Deployment preserved the pre-deploy `data.json` hashes: ALL remained `a803aba2…174c`, and YS remained `14a874f7…22a7`.
+
+## v0.3.12 Resize Stabilization
+
+Verified on 2026-07-27 with Obsidian Desktop 1.12.7 in the ALL and YS vaults.
+
+### Resize stabilization
+
+- Debounced width-only `ResizeObserver` bursts for 120 ms, so opening or closing an Obsidian side dock no longer rebuilds the complete rail on every animation frame.
+- Kept height changes immediate on the next animation frame, preserving correct tick geometry while the Reading pane itself changes height.
+- Kept the 680 px rail-visibility threshold immediate, so crossing the compact-pane boundary cannot leave a stale visible or hidden rail.
+- Cancelled any pending resize timer during controller destruction to prevent a late refresh against a detached Reading pane.
+
+### Automated gate
+
+`npm run check` passed with 13 test files and 102 tests. Vitest, ESLint, TypeScript, the production esbuild bundle, `node --check main.js`, manifest/package/version consistency, and `git diff --check` all passed.
+
+The new regressions cover burst coalescing for width-only resizes, next-frame handling for height changes, and immediate visibility updates when the host crosses the 680 px threshold.
+
+### Live Obsidian acceptance
+
+- Before the fix, one right-sidebar animation triggered 16 controller refreshes, 16 outline rebuilds, 32 layout measurements, and 1,256 mutations inside the rail.
+- After the fix, a foreground YS sidebar animation from a 1,228.5 px Reading host to 1,536 px triggered 2 controller refreshes, 2 outline rebuilds, 4 layout measurements, and 4 rail mutations.
+- Across 1,908 animation-frame samples, the article images produced no zero-width frame.
+- Reloaded Crisp Reading Rail independently in ALL and YS. Both reported version `0.3.12`, enabled state, one live rail, one controller, and no captured errors.
+
+### Deployment integrity
+
+The repository build and both installed runtimes matched byte for byte:
+
+```text
+main.js       414829da0080d5e93015c3e2940707e3dc00ee61aaec4b94e0de0f923d55e320
+manifest.json 13d8e0eaca429de2efcae7a3e1dab502a01665e4e6b89b1f42e1d213e55ac272
+styles.css    a47d5743a939814d091d293d3f5c3589dbb1ca1e8ac9fd8d6074b5af304df4df
+assets/       19 files, identical in source, ALL, and YS
+```
+
+Deployment preserved the pre-deploy `data.json` hashes: ALL remained `a803aba2…174c`, and YS remained `3d730f99…e4c5`.
+
+## v0.3.11
+
+Verified on 2026-07-27 with Obsidian Desktop 1.12.7 in the ALL and YS vaults.
+
+### Crisp Annotations compatibility
+
+- Converted valid `==target=={ann ...}` heading syntax to the annotated target before building the cached outline.
+- Extracted rendered heading text from a detached DOM clone after removing Crisp Annotations note labels, connector graphics, and Obsidian's heading-collapse control.
+- Kept the normalized cached and rendered labels identical, allowing annotated headings to retain their real DOM navigation targets instead of falling back to estimated positions.
+
+### Automated gate
+
+`npm run check` passed with 13 test files and 99 tests. Vitest, ESLint, TypeScript, the production esbuild bundle, manifest/package/version consistency, and `git diff --check` all passed.
+
+The regression cycle first reproduced both failures independently: cached annotation syntax leaking into the outline label and rendered annotation-note text leaking into heading matching. Both tests failed for the expected values before the production changes and passed afterward.
+
+### Live Obsidian acceptance
+
+- Deployed and independently reloaded Crisp Reading Rail in ALL and YS. Both reported version `0.3.11`, enabled state, one live rail, and no captured errors.
+- Opened `01-AI基础与概念/Making Software Shaders.md` in YS Reading view. Its source heading `==How a GPU works=={ann note="GPU是如何工作的" place=right color=purple}` rendered in the rail exactly as `How a GPU works`.
+- Clicked that live rail label after moving the document to the top. The note navigated to scroll position `2992`, leaving the annotated H3 aligned at the top of the Reading pane (`-0.05px` measured offset), then restored the user's prior reading position.
+
+### Deployment integrity
+
+The repository build and both installed runtimes matched byte for byte:
+
+```text
+main.js       ef2c8c6248f55e946b512d66ea3e6439af129f0426f1e2fbe13d08d7da16d15b
+manifest.json 3437abe4eb572c650d2f9ae47c3c602a423d48d982fa9dd9dfe964a23b3d1879
+styles.css    a47d5743a939814d091d293d3f5c3589dbb1ca1e8ac9fd8d6074b5af304df4df
+assets/       19 files, identical in source, ALL, and YS
+```
+
+Deployment preserved the pre-deploy `data.json` hashes: ALL remained `a803aba2…174c`, and YS remained `14a874f7…22a7`.
+
+### Sanitized share package
+
+Created `/Users/xiaohetongxue/Desktop/Crisp-Reading-Rail-0.3.11-share.zip` with 22 runtime files: `main.js`, `manifest.json`, `styles.css`, and all 19 referenced assets. The archive excludes `data.json`, source, tests, repository metadata, vault configuration, and local machine paths.
+
+`unzip -t`, source-to-archive byte comparisons, referenced-asset coverage, manifest version validation, and sensitive-string scanning all passed. Archive SHA-256: `7cb16ccd49a6bb959630e768ab89f0b13712bc329ffce2934935fe6e8d5703dd`.
+
+## v0.3.10
+
+Verified on 2026-07-27 with Obsidian Desktop 1.12.7 in the ALL and YS vaults.
+
+### Linked-heading fix
+
+- Converted cached Markdown links to their visible labels before building the rail outline, so `[Reference guide](https://example.com/docs)` displays as `Reference guide`.
+- Converted aliased Obsidian wiki links to their visible aliases, so `[[00-启动页|Internal guide]]` displays as `Internal guide`.
+- Kept rendered-heading matching and navigation targets on the same normalized label, preventing link syntax from making a valid Reading-view heading disappear from the rail.
+
+### Automated gate
+
+`npm run check` passed with 13 test files and 97 tests. Vitest, ESLint, TypeScript, the production esbuild bundle, `node --check main.js`, manifest/package/version consistency, and runtime file comparisons all passed.
+
+The regression cycle first reproduced the Markdown-link failure through the pane registry, then verified Markdown-link and aliased-wikilink labels after the fix.
+
+### Live Obsidian acceptance
+
+- Deployed and independently reloaded Crisp Reading Rail in ALL and YS. Both reported version `0.3.10`, enabled state, one live rail, and no captured errors.
+- Opened a temporary ALL Reading-view note containing a Markdown-linked H2 and an aliased-wikilink H2. The rendered article headings and rail labels both resolved exactly to `Reference guide` and `Internal guide`; the rail exposed one slider.
+- Removed the temporary acceptance note and restored the previously active ALL note after inspection.
+
+### Deployment integrity
+
+The repository build and both installed runtimes matched byte for byte:
+
+```text
+main.js       56cc766ef9de37e15a2a9261ca6a3ef7548fb1e6a96109223d98afc9033e9080
+manifest.json eb9250ef18f6787e3bad4f2e5db0140464aaa5cce6b363712d444766cc29e8a6
+styles.css    a47d5743a939814d091d293d3f5c3589dbb1ca1e8ac9fd8d6074b5af304df4df
+assets/       19 files, identical in source, ALL, and YS
+```
+
+Deployment preserved the pre-deploy `data.json` hashes: ALL remained `a803aba2…174c`, and YS remained `14a874f7…22a7`.
+
+## v0.3.9
+
+Verified on 2026-07-27 with Obsidian Desktop 1.12.7 in the ALL and YS vaults.
+
+### Stabilization scope
+
+- Recovered the running 0.3.8 sound palettes, release-sound control, completion chime, heading commands, orb-cycle command, settings groups, and reading waypoints into the TypeScript source tree.
+- Made the repository build the single source of truth again; no runtime-only JavaScript or CSS remains.
+- Persisted normalized, sorted, deduplicated reading waypoints by note path. Waypoints render as native buttons, support click and keyboard activation, and can be removed with Delete, Backspace, or the context menu.
+- Replaced the settings accordion's animated `grid-template-rows` and padding with native `details`/`summary` semantics and compositor-safe color, shadow, and chevron transitions.
+- Replaced the 650 ms celebration transform override with a 240 ms independent scale/rotate animation. The outer orb's inline position transform remains untouched, and reduced-motion mode suppresses the animation.
+- Retained the existing spring rail, wave geometry, proximity coalescing, virtualized-heading settlement, companion orb following, and vault-specific orb/sound choices.
+
+### Automated gate
+
+`npm run check` passed with 12 test files and 95 tests. Vitest, ESLint, TypeScript, the production esbuild bundle, `node --check main.js`, manifest/package/version consistency, and `git diff --check` all passed.
+
+The new regression coverage includes sound-style normalization and Crisp File Explorer aliases; release-sound muting; scale progress mapping; completion-chime laziness; waypoint normalization, per-note updates, persistence callbacks, accessible button behavior, keyboard deletion, double-click and `M` creation, listener cleanup; position-safe completion celebration and reduced motion; controller/registry waypoint wiring; progress-aware drag sound; active-pane next/previous heading commands; native settings groups; and CSS bans on layout animation.
+
+### Live Obsidian acceptance
+
+- Reloaded Crisp Reading Rail independently in ALL and YS. Both reported version `0.3.9`, enabled state, one visible rail, one slider, and no captured errors.
+- Preserved ALL's Devil orb with sound enabled and Follow Crisp File Explorer sound style.
+- Preserved YS's Poke Ball orb with sound enabled, Retro 8-bit sound style, and release sound enabled.
+- Confirmed all four commands are registered: navigation-sound toggle, next heading, previous heading, and orb-style cycle.
+- Confirmed the live slider exposes the waypoint instructions through `aria-description`.
+- Created a temporary waypoint at `0.37` in the active ALL note, confirmed it persisted under that note path, then removed it with the Delete key and confirmed both the button and stored entry disappeared. The original `data.json` was restored byte for byte and the plugin was reloaded without errors.
+- Opened the real settings tab and verified three native collapsible cards, with the first two open and the interaction help group closed. The modal rendered without clipping or layout breakage.
+- Visually inspected the live ALL Reading view after reload. The compact rail, Devil orb, progress text, focus line, and ticks remained aligned at the right edge without restoring a full-height rule.
+- Closed the settings modal after inspection and confirmed the error buffer remained empty.
+
+### Deployment integrity
+
+The repository build was deployed with the asset-aware deployment script to:
+
+```text
+/Users/xiaohetongxue/Library/Mobile Documents/iCloud~md~obsidian/Documents/ALL/.obsidian/plugins/crisp-reading-rail
+/Users/xiaohetongxue/Library/Mobile Documents/iCloud~md~obsidian/Documents/YS/.obsidian/plugins/crisp-reading-rail
+```
+
+Both runtimes matched the repository byte for byte:
+
+```text
+main.js       a7d582d718e59720251515a3643b4ca0959d7b45def67fc5f14db57bb6e4929b
+manifest.json 491a4d4319e6e51992c5927615757334240f77bbbdc372a641d15716d656f13f
+styles.css    a47d5743a939814d091d293d3f5c3589dbb1ca1e8ac9fd8d6074b5af304df4df
+assets/       19 files, identical in ALL and YS
+```
+
+The deployment preserved each vault's existing `data.json` byte for byte. ALL remained `a803aba2…174c`; YS remained `d311b701…e6f`.
+
 ## v0.3.0
 
 Verified on 2026-07-15 with Obsidian Desktop 1.12.7 in the ALL vault.
@@ -8,7 +251,7 @@ Verified on 2026-07-15 with Obsidian Desktop 1.12.7 in the ALL vault.
 
 `npm run check` passed with 9 test files and 49 tests. ESLint, TypeScript, production esbuild, `node --check main.js`, manifest assertions, and `git diff --check` all passed.
 
-The new coverage includes spring convergence and frame-delta clamping; Gaussian wave geometry and dynamic-radius reset; first-render/hidden-to-visible snapping; reduced motion; all 22 Orb setting values; all 19 material mappings; deterministic daily random; same-document Crisp File Explorer following and fallback; inline/file-backed media and image-error fallback; character rotation suppression; variable-height/over-constrained label layout; live-pane appearance propagation; observer/frame/timer/listener cleanup; and asset-aware deployment that preserves `data.json`.
+The new coverage includes spring convergence and frame-delta clamping; Gaussian wave geometry and dynamic-radius reset; first-render/hidden-to-visible snapping; reduced motion; all 28 Orb setting values; all 25 material mappings; deterministic daily random; same-document Crisp File Explorer following and fallback; inline/file-backed media and image-error fallback; character rotation suppression; variable-height/over-constrained label layout; live-pane appearance propagation; observer/frame/timer/listener cleanup; and asset-aware deployment that preserves `data.json`.
 
 ### Live Obsidian acceptance
 
@@ -29,7 +272,7 @@ Every deployed `main.js`, `manifest.json`, `styles.css`, SVG, and PNG matched th
 
 ### Automated-only acceptance
 
-Random per day, live companion-style mutation, missing-companion fallback, image failure fallback, character-upright behavior, reduced-motion snapping, multiple panes, and narrow/edit/hidden-state cleanup are covered by deterministic automated tests. They were not all exercised manually for every one of the 19 material choices in the final Obsidian session.
+Random per day, live companion-style mutation, missing-companion fallback, image failure fallback, character-upright behavior, reduced-motion snapping, multiple panes, and narrow/edit/hidden-state cleanup are covered by deterministic automated tests. They were not all exercised manually for every one of the 25 material choices in the final Obsidian session.
 
 ## v0.2.0
 

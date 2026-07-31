@@ -3,6 +3,7 @@ import {
   ReadingRailAudio,
   type ReadingRailAudioEnvironment,
 } from "../src/audio-feedback";
+import type { ReadingRailSoundStyle } from "../src/sound-styles";
 
 interface FakeAudioFixture {
   context: AudioContext;
@@ -143,5 +144,63 @@ describe("ReadingRailAudio", () => {
     await audio.destroy();
 
     expect(fixture.close).toHaveBeenCalledOnce();
+  });
+
+  it("uses the selected sound style and maps drag progress onto the scale", () => {
+    const fixture = makeAudioContext();
+    const environment = makeEnvironment(fixture, () => 100);
+    let style: ReadingRailSoundStyle = "scale";
+    const audio = new ReadingRailAudio(() => true, environment, {
+      getStyle: () => style,
+    });
+
+    audio.tick(0);
+    expect(fixture.oscillators[0].frequency.setValueAtTime)
+      .toHaveBeenCalledWith(523.25, 2);
+
+    style = "retro8bit";
+    audio.settle();
+    expect(fixture.oscillators[1].type).toBe("square");
+    expect(fixture.oscillators[1].frequency.setValueAtTime)
+      .toHaveBeenCalledWith(1318, 2);
+  });
+
+  it("follows compatible Crisp File Explorer sound names and can mute release sounds", () => {
+    const fixture = makeAudioContext();
+    const environment = makeEnvironment(fixture, () => 100);
+    let releaseEnabled = false;
+    const audio = new ReadingRailAudio(() => true, environment, {
+      getStyle: () => "followFileExplorer",
+      getCompanionStyle: () => "wood",
+      isReleaseEnabled: () => releaseEnabled,
+    });
+
+    audio.tick();
+    expect(fixture.oscillators[0].type).toBe("sine");
+    expect(fixture.oscillators[0].frequency.setValueAtTime)
+      .toHaveBeenCalledWith(720, 2);
+
+    audio.settle();
+    expect(fixture.oscillators).toHaveLength(1);
+    releaseEnabled = true;
+    audio.settle();
+    expect(fixture.oscillators).toHaveLength(2);
+  });
+
+  it("plays one quiet four-note completion chime only while sound is enabled", () => {
+    let enabled = false;
+    const fixture = makeAudioContext();
+    const environment = makeEnvironment(fixture, () => 100);
+    const audio = new ReadingRailAudio(() => enabled, environment);
+
+    audio.completionChime();
+    expect(environment.createContext).not.toHaveBeenCalled();
+
+    enabled = true;
+    audio.completionChime();
+    expect(fixture.oscillators).toHaveLength(4);
+    expect(fixture.oscillators.map((oscillator) => (
+      oscillator.frequency.setValueAtTime.mock.calls[0][0]
+    ))).toEqual([659.25, 830.61, 987.77, 1318.51]);
   });
 });

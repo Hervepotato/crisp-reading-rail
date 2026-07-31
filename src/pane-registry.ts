@@ -1,5 +1,6 @@
 import { MarkdownView } from "obsidian";
 import type { RailSoundProvider } from "./audio-feedback";
+import { headingTextFromMarkdown } from "./heading-text";
 import { ReadingRailController } from "./reading-rail-controller";
 import type { ReadingRailControllerOptions } from "./reading-rail-controller";
 import type { RailAppearanceProvider } from "./reading-rail-view";
@@ -14,14 +15,21 @@ import type {
 
 export interface ControllerLike {
   start(): void;
+  jumpHeading(delta: number): void;
   refresh(): void;
   refreshAppearance(): void;
   destroy(): void;
 }
 
 interface RegistryContext {
-  workspace: Pick<Workspace, "iterateAllLeaves">;
+  workspace: Pick<Workspace, "iterateAllLeaves">
+    & Partial<Pick<Workspace, "getActiveViewOfType">>;
   metadataCache: Pick<MetadataCache, "getFileCache">;
+}
+
+export interface ReadingWaypointStore {
+  get(filePath: string): readonly number[];
+  set(filePath: string, waypoints: readonly number[]): void;
 }
 
 interface PaneElements {
@@ -33,6 +41,7 @@ interface PaneElements {
 interface RegistryOptions {
   appearance?: RailAppearanceProvider;
   sound?: RailSoundProvider;
+  waypoints?: ReadingWaypointStore;
   isMarkdownView?(view: View): view is MarkdownView;
   resolveElements?(view: MarkdownView): PaneElements | null;
   createController?(options: ReadingRailControllerOptions): ControllerLike;
@@ -78,6 +87,7 @@ export class ReadingPaneRegistry {
   private readonly context: RegistryContext;
   private readonly appearance?: RailAppearanceProvider;
   private readonly sound?: RailSoundProvider;
+  private readonly waypoints?: ReadingWaypointStore;
   private readonly isMarkdownView: (view: View) => view is MarkdownView;
   private readonly resolveElements: (view: MarkdownView) => PaneElements | null;
   private readonly createController: (options: ReadingRailControllerOptions) => ControllerLike;
@@ -88,6 +98,7 @@ export class ReadingPaneRegistry {
     this.context = context;
     this.appearance = options.appearance;
     this.sound = options.sound;
+    this.waypoints = options.waypoints;
     this.isMarkdownView = options.isMarkdownView ?? (
       (view: View): view is MarkdownView => view instanceof MarkdownView
     );
@@ -95,6 +106,14 @@ export class ReadingPaneRegistry {
     this.createController = options.createController ?? (
       (controllerOptions) => new ReadingRailController(controllerOptions)
     );
+  }
+
+  jumpNextHeading(): void {
+    this.jumpActiveHeading(1);
+  }
+
+  jumpPreviousHeading(): void {
+    this.jumpActiveHeading(-1);
   }
 
   reconcile(): void {
@@ -133,6 +152,16 @@ export class ReadingPaneRegistry {
         sound: this.sound,
         getHeadings: () => this.getOutlineHeadings(view.file),
         getLineCount: () => view.getViewData().split(/\r?\n/).length,
+        getWaypoints: () => {
+          const path = view.file?.path;
+          return path ? this.waypoints?.get(path) ?? [] : [];
+        },
+        setWaypoints: (waypoints) => {
+          const path = view.file?.path;
+          if (path) {
+            this.waypoints?.set(path, waypoints);
+          }
+        },
       });
       this.controllers.set(leaf, { ...elements, view, controller });
       controller.start();
@@ -177,6 +206,19 @@ export class ReadingPaneRegistry {
     this.controllers.clear();
   }
 
+  private jumpActiveHeading(delta: number): void {
+    const activeView = this.context.workspace.getActiveViewOfType?.(MarkdownView);
+    if (!activeView) {
+      return;
+    }
+    for (const record of this.controllers.values()) {
+      if (record.view === activeView) {
+        record.controller.jumpHeading(delta);
+        return;
+      }
+    }
+  }
+
   private getOutlineHeadings(file: TFile | null): Array<{
     text: string;
     level: number;
@@ -187,7 +229,7 @@ export class ReadingPaneRegistry {
     }
     const cache: CachedMetadata | null = this.context.metadataCache.getFileCache(file);
     return (cache?.headings ?? []).map((heading) => ({
-      text: heading.heading,
+      text: headingTextFromMarkdown(heading.heading),
       level: heading.level,
       sourceLine: heading.position.start.line,
     }));
