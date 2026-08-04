@@ -154,6 +154,23 @@ export function resolveVariableLabelPositions(
   return withLabelPositions(entries, positions);
 }
 
+export function labelListOverflows(
+  entries: readonly OutlineEntry[],
+  trackHeight: number,
+  labelHeights: readonly number[],
+  minGap: number,
+): boolean {
+  if (entries.length === 0) {
+    return false;
+  }
+  const availableHeight = Math.max(0, trackHeight);
+  const gap = Math.max(0, minGap);
+  const requestedHeight = entries.reduce((sum, _, index) => (
+    sum + Math.min(availableHeight, Math.max(0, labelHeights[index] ?? 0))
+  ), 0) + gap * Math.max(0, entries.length - 1);
+  return requestedHeight > availableHeight;
+}
+
 function withLabelPositions(
   entries: readonly OutlineEntry[],
   positions: readonly number[],

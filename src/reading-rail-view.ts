@@ -13,7 +13,10 @@ import {
   type OrbStyleSetting,
   type ResolvedOrbStyle,
 } from "./orb-styles";
-import { resolveVariableLabelPositions } from "./outline-model";
+import {
+  labelListOverflows,
+  resolveVariableLabelPositions,
+} from "./outline-model";
 import { clamp01, progressFromPointer } from "./progress";
 import { normalizeWaypoints } from "./settings";
 import type { OutlineEntry } from "./types";
@@ -112,6 +115,7 @@ export class ReadingRailView {
   private orbMedia: HTMLElement | null = null;
   private resolvedOrbStyle: ResolvedOrbStyle = "default";
   private needsLabelLayout = false;
+  private labelListDense = false;
   private hasCelebratedCompletion = false;
   private destroyed = false;
 
@@ -336,6 +340,12 @@ export class ReadingRailView {
     this.labels[nextIndex]?.setAttribute("aria-current", "location");
     this.headingTicks[nextIndex]?.classList.add("is-active");
     this.activeHeadingIndex = nextIndex;
+    if (this.labelListDense && nextIndex >= 0) {
+      const label = this.labels[nextIndex];
+      if (label) {
+        this.scrollLabelIntoView(label);
+      }
+    }
   }
 
   setExpanded(expanded: boolean): void {
@@ -442,20 +452,50 @@ export class ReadingRailView {
     const labelHeights = this.labels.map((label) => (
       label.getBoundingClientRect().height || label.scrollHeight || 20
     ));
-    const resolved = resolveVariableLabelPositions(
+    const dense = labelListOverflows(
       this.entries,
       this.trackHeight,
       labelHeights,
       LABEL_GAP,
     );
-    this.labels.forEach((label, index) => {
-      label.style.setProperty(
-        "--crisp-reading-label-y",
-        `${resolved[index]?.labelY ?? 0}px`,
+    if (dense !== this.labelListDense) {
+      this.labelListDense = dense;
+      this.root.classList.toggle("is-dense", dense);
+      if (!dense) {
+        this.labelsContainer.scrollTop = 0;
+      }
+    }
+    if (dense) {
+      this.labels.forEach((label) => {
+        label.style.setProperty("--crisp-reading-label-y", "0px");
+      });
+    } else {
+      const resolved = resolveVariableLabelPositions(
+        this.entries,
+        this.trackHeight,
+        labelHeights,
+        LABEL_GAP,
       );
-    });
+      this.labels.forEach((label, index) => {
+        label.style.setProperty(
+          "--crisp-reading-label-y",
+          `${resolved[index]?.labelY ?? 0}px`,
+        );
+      });
+    }
     this.targetPosition = this.currentProgress * this.trackHeight;
     this.needsLabelLayout = false;
+  }
+
+  private scrollLabelIntoView(label: HTMLElement): void {
+    const container = this.labelsContainer;
+    const containerRect = container.getBoundingClientRect();
+    const labelRect = label.getBoundingClientRect();
+    if (labelRect.top < containerRect.top) {
+      container.scrollTop -= containerRect.top - labelRect.top;
+    } else if (labelRect.bottom > containerRect.bottom) {
+      container.scrollTop += labelRect.bottom - containerRect.bottom;
+    }
   }
 
   private snapToTarget(): void {

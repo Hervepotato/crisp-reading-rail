@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   activeHeadingIndex,
   buildOutlineEntries,
+  labelListOverflows,
   resolveLabelPositions,
   resolveVariableLabelPositions,
 } from "../src/outline-model";
@@ -107,6 +108,23 @@ describe("outline model", () => {
     expect(positions[0]).toBeGreaterThanOrEqual(0);
     expect(positions[3]).toBeLessThanOrEqual(30);
     expect(positions.every(Number.isFinite)).toBe(true);
+  });
+
+  it("detects when labels no longer fit on the track", () => {
+    const entries = Array.from({ length: 6 }, (_, index) => ({
+      text: String(index),
+      level: 2,
+      sourceLine: index,
+      documentY: index,
+      progress: index / 5,
+      labelY: 0,
+      target: null,
+    }));
+    const heights = entries.map(() => 16);
+
+    expect(labelListOverflows(entries, 100, heights, 4)).toBe(true);
+    expect(labelListOverflows(entries, 200, heights, 4)).toBe(false);
+    expect(labelListOverflows([], 100, [], 4)).toBe(false);
   });
 
   it("returns no active heading before the first threshold", () => {

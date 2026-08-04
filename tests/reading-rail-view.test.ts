@@ -969,4 +969,52 @@ describe("ReadingRailView", () => {
 
     expect(secondY - firstY).toBeGreaterThanOrEqual(22);
   });
+
+  it("switches to a scrollable label list when labels overflow the track", () => {
+    const originalBounds = HTMLElement.prototype.getBoundingClientRect;
+    const host = document.createElement("div");
+    const view = ReadingRailView.mount(host, {
+      onHeadingSelect: vi.fn(),
+      onProgressSelect: vi.fn(),
+    });
+    const root = host.querySelector<HTMLElement>(".crisp-reading-rail")!;
+    const track = host.querySelector<HTMLElement>(".crisp-reading-rail__track")!;
+    const labelsContainer = host.querySelector<HTMLElement>(".crisp-reading-rail__labels")!;
+    setMetric(track, "clientHeight", 100);
+    view.setOutline(Array.from({ length: 6 }, (_, index) => ({
+      ...makeEntry(),
+      text: `Heading ${index}`,
+      progress: index / 5,
+    })), 12);
+    const labels = host.querySelectorAll<HTMLElement>(".crisp-reading-rail__label");
+    vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (
+      this: HTMLElement,
+    ) {
+      if (this.classList.contains("crisp-reading-rail__labels")) {
+        return { top: 0, left: 0, right: 200, bottom: 100, width: 200, height: 100,
+          x: 0, y: 0, toJSON: () => ({}) };
+      }
+      if (this.classList.contains("crisp-reading-rail__label")) {
+        if (this === labels[5]) {
+          return { top: 250, left: 0, right: 200, bottom: 270, width: 200, height: 20,
+            x: 0, y: 0, toJSON: () => ({}) };
+        }
+        return { top: 0, left: 0, right: 100, bottom: 20, width: 100, height: 20,
+          x: 0, y: 0, toJSON: () => ({}) };
+      }
+      return originalBounds.call(this);
+    });
+
+    expect(root.classList.contains("is-dense")).toBe(true);
+    expect(labels).toHaveLength(6);
+
+    let assignedScrollTop: number | null = null;
+    vi.spyOn(labelsContainer, "scrollTop", "set").mockImplementation((value: number) => {
+      assignedScrollTop = value;
+    });
+    view.setActiveHeading(5);
+    expect(assignedScrollTop).toBe(170);
+
+    vi.restoreAllMocks();
+  });
 });
