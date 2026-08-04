@@ -20,19 +20,20 @@ describe("orb styles", () => {
   });
 
   it("exposes the complete approved setting menu", () => {
-    expect(ORB_STYLE_OPTIONS).toHaveLength(28);
+    expect(ORB_STYLE_OPTIONS).toHaveLength(36);
     expect(ORB_STYLE_OPTIONS[0]).toEqual({
       value: "followFileExplorer",
       label: "Follow Crisp File Explorer",
     });
     expect(ORB_STYLE_OPTIONS[ORB_STYLE_OPTIONS.length - 1]).toEqual({
-      value: "taiga",
-      label: "Taiga",
+      value: "spiderman",
+      label: "Spider-Man",
     });
+    expect(ORB_STYLE_OPTIONS).toContainEqual({ value: "taiga", label: "Taiga" });
   });
 
   it("maps every material style to inline SVG or an owned asset", () => {
-    expect(RANDOM_DAILY_ORB_STYLES).toHaveLength(25);
+    expect(RANDOM_DAILY_ORB_STYLES).toHaveLength(33);
 
     for (const style of RANDOM_DAILY_ORB_STYLES) {
       expect(Boolean(INLINE_ORB_SVGS[style] ?? IMAGE_ORB_ASSETS[style])).toBe(true);
@@ -46,6 +47,9 @@ describe("orb styles", () => {
         "snorlax",
         "pikachu",
         "snorlaxface",
+        "batman",
+        "superman",
+        "spiderman",
       ]),
     );
   });
@@ -61,12 +65,20 @@ describe("orb styles", () => {
       pokeball: "assets/poke-ball.svg",
       bracelet: "assets/bracelet.svg",
       snorlaxface: "assets/snorlax-face.svg",
+      angry: "assets/angry.svg",
+      squint: "assets/squint.svg",
+      facemask: "assets/face-mask.svg",
+      pokerface: "assets/poker-face.svg",
+      captainshield: "assets/captain-america-shield.svg",
+      batman: "assets/batman.svg",
+      superman: "assets/superman.svg",
+      spiderman: "assets/spider-man.svg",
     });
 
-    for (const style of ["snorlax", "pikachu", "snorlaxface"] as const) {
+    for (const style of ["snorlax", "pikachu", "snorlaxface", "batman", "superman", "spiderman"] as const) {
       expect(STATIC_ORB_STYLES.has(style)).toBe(true);
     }
-    for (const style of ["soccer", "basketball", "tennis", "shutup", "pokeball", "bracelet"] as const) {
+    for (const style of ["soccer", "basketball", "tennis", "shutup", "pokeball", "bracelet", "angry", "squint", "facemask", "pokerface", "captainshield"] as const) {
       expect(STATIC_ORB_STYLES.has(style)).toBe(false);
     }
   });

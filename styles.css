@@ -280,6 +280,14 @@ body .crisp-reading-rail-native-scrollbar::-webkit-scrollbar {
 .crisp-reading-rail .crisp-reading-rail__orb[data-orb-style="pikachu"],
 .crisp-reading-rail .crisp-reading-rail__orb[data-orb-style="pokeball"],
 .crisp-reading-rail .crisp-reading-rail__orb[data-orb-style="bracelet"],
+.crisp-reading-rail .crisp-reading-rail__orb[data-orb-style="angry"],
+.crisp-reading-rail .crisp-reading-rail__orb[data-orb-style="squint"],
+.crisp-reading-rail .crisp-reading-rail__orb[data-orb-style="facemask"],
+.crisp-reading-rail .crisp-reading-rail__orb[data-orb-style="pokerface"],
+.crisp-reading-rail .crisp-reading-rail__orb[data-orb-style="captainshield"],
+.crisp-reading-rail .crisp-reading-rail__orb[data-orb-style="batman"],
+.crisp-reading-rail .crisp-reading-rail__orb[data-orb-style="superman"],
+.crisp-reading-rail .crisp-reading-rail__orb[data-orb-style="spiderman"],
 .crisp-reading-rail .crisp-reading-rail__orb[data-orb-style="snorlaxface"] {
   width: 22px;
   height: 22px;

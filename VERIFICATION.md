@@ -1,5 +1,25 @@
 # Crisp Reading Rail verification
 
+## v0.3.19 Expanded orb library
+
+Verified on 2026-08-04 in the ALL and YS vaults.
+
+### Added
+
+- Angry、Squint、Face Mask、Poker Face、Captain America Shield 五种可旋转表情/盾牌 Orb，沿用 Shut Up 的固定中心旋转逻辑
+- Batman、Superman、Spider-Man 三种静态人物 Orb，沿用 Pikachu 的直立静态逻辑（不随滚动旋转）
+- 设置菜单与 Random per day 列表同步扩展至 33 种材质/人物样式
+
+### Automated gate
+
+- `npm run check` passed with 13 test files and 106 tests, followed by ESLint, TypeScript, and a production build.
+
+### Live Obsidian acceptance
+
+- ALL 和 YS 重载 `crisp-file-explorer` 与 `crisp-reading-rail` 后 `dev:errors` 均无错误
+- 8 个新资源在 ALL/YS 两个 vault 中均能通过两个插件的资源路径成功加载
+- Runtime files (main.js, manifest.json, styles.css, assets/) 在 ALL、YS 之间字节一致；各 vault 保留各自 `data.json`
+
 ## v0.3.18 License verification and requestUrl update
 
 Verified on 2026-07-31 in the ALL, YS, and test obsidian vaults.

@@ -26,6 +26,14 @@ export const RANDOM_DAILY_ORB_STYLES = [
   "alfresco",
   "mercedes",
   "taiga",
+  "angry",
+  "squint",
+  "facemask",
+  "pokerface",
+  "captainshield",
+  "batman",
+  "superman",
+  "spiderman",
 ] as const;
 
 export type MaterialOrbStyle = (typeof RANDOM_DAILY_ORB_STYLES)[number];
@@ -68,6 +76,14 @@ export const ORB_STYLE_OPTIONS: ReadonlyArray<{
   { value: "alfresco", label: "Alfresco" },
   { value: "mercedes", label: "Mercedes-Benz" },
   { value: "taiga", label: "Taiga" },
+  { value: "angry", label: "Angry" },
+  { value: "squint", label: "Squint" },
+  { value: "facemask", label: "Face Mask" },
+  { value: "pokerface", label: "Poker Face" },
+  { value: "captainshield", label: "Captain America Shield" },
+  { value: "batman", label: "Batman" },
+  { value: "superman", label: "Superman" },
+  { value: "spiderman", label: "Spider-Man" },
 ];
 
 export const INLINE_ORB_SVGS: Partial<Record<MaterialOrbStyle, string>> =
@@ -93,6 +109,14 @@ export const IMAGE_ORB_ASSETS: Partial<Record<MaterialOrbStyle, string>> = {
   alfresco: "assets/alfresco.svg",
   mercedes: "assets/mercedes.svg",
   taiga: "assets/taiga.svg",
+  angry: "assets/angry.svg",
+  squint: "assets/squint.svg",
+  facemask: "assets/face-mask.svg",
+  pokerface: "assets/poker-face.svg",
+  captainshield: "assets/captain-america-shield.svg",
+  batman: "assets/batman.svg",
+  superman: "assets/superman.svg",
+  spiderman: "assets/spider-man.svg",
 };
 
 export const STATIC_ORB_STYLES = new Set<MaterialOrbStyle>([
@@ -102,6 +126,9 @@ export const STATIC_ORB_STYLES = new Set<MaterialOrbStyle>([
   "snorlax",
   "pikachu",
   "snorlaxface",
+  "batman",
+  "superman",
+  "spiderman",
 ]);
 
 const VALID_SETTINGS = new Set<OrbStyleSetting>([
