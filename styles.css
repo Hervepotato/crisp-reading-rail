@@ -435,22 +435,26 @@ body .crisp-reading-rail-native-scrollbar::-webkit-scrollbar {
 }
 
 .crisp-reading-rail.is-dense .crisp-reading-rail__labels {
-  bottom: auto;
-  max-height: min(60vh, calc(100% - 36px));
+  width: max-content;
+  min-width: min(240px, 30vw);
+  max-width: min(340px, 40vw);
   overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior: contain;
   scrollbar-width: thin;
+  scrollbar-gutter: stable;
 }
 
 .crisp-reading-rail.is-dense .crisp-reading-rail__label {
   position: static;
   top: auto;
-  display: block;
   min-height: 22px;
-  padding: 2px 6px;
+  padding: 3px 8px;
+  padding-right: calc(var(--crisp-reading-level) * 8px + 8px);
   border-radius: 6px;
-  white-space: nowrap;
+  -webkit-line-clamp: unset;
+  overflow-wrap: anywhere;
+  transform: none;
 }
 
 .crisp-reading-rail.is-dense .crisp-reading-rail__label:hover,
@@ -463,8 +467,8 @@ body .crisp-reading-rail-native-scrollbar::-webkit-scrollbar {
   pointer-events: auto;
   background: var(--background-primary);
   border: 1px solid var(--background-modifier-border);
-  border-radius: 8px;
-  box-shadow: 0 8px 24px rgb(0 0 0 / 8%);
+  border-radius: 10px;
+  box-shadow: 0 4px 16px rgb(0 0 0 / 6%);
 }
 
 .crisp-reading-rail .crisp-reading-rail__track:focus-visible
