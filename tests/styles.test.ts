@@ -56,6 +56,15 @@ describe("Crisp Reading Rail styles", () => {
     }
   });
 
+  it("keeps static character orbs larger than the shared image orb size", () => {
+    const staticBlock = css.match(
+      /\.crisp-reading-rail__orb\[data-orb-style="character1"\][\s\S]*?\.crisp-reading-rail__orb\[data-orb-style="spiderman"\]\s*\{([^}]*)\}/,
+    );
+
+    expect(staticBlock?.[1]).toMatch(/width:\s*24px/);
+    expect(staticBlock?.[1]).toMatch(/height:\s*24px/);
+  });
+
   it("keeps label motion responsive without sticky touch hover", () => {
     expect(css).not.toContain(
       ".crisp-reading-rail:hover .crisp-reading-rail__label",

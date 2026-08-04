@@ -1,5 +1,22 @@
 # Crisp Reading Rail verification
 
+## v0.3.21 Static character orb sizing
+
+Verified on 2026-08-04 in the ALL vault.
+
+### Changed
+
+- 静态人物 Orb（Character 1-3、Snorlax、Pikachu、Snorlax Face、Batman、Superman、Spider-Man）从 22px 放大至 24px，居中位置不变
+- 旋转类与其它图片 Orb 保持 22px 不变
+
+### Automated gate
+
+- `npm run check` passed with 13 test files and 107 tests, followed by ESLint, TypeScript, and a production build.
+
+### Live Obsidian acceptance
+
+- ALL 重载后 `dev:errors` 无错误；orb 中心与轨道竖线中心保持一致（24px 放大后中心无偏移）
+
 ## v0.3.20 Orb asset polish
 
 Verified on 2026-08-04 in the ALL and YS vaults.
