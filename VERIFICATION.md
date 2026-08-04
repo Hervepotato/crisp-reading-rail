@@ -1,5 +1,23 @@
 # Crisp Reading Rail verification
 
+## v0.3.20 Orb asset polish
+
+Verified on 2026-08-04 in the ALL and YS vaults.
+
+### Changed
+
+- Batman、Superman、Spider-Man 三个 Orb 素材去除白色背景与白色高光，仅保留图案主体，透明背景直接贴合轨道
+- 自动门禁与真实 Obsidian 重载验证通过，样式数量与设置菜单保持不变
+
+### Automated gate
+
+- `npm run check` passed with 13 test files and 106 tests, followed by ESLint, TypeScript, and a production build.
+
+### Live Obsidian acceptance
+
+- ALL 和 YS 重载两个插件后 `dev:errors` 均无错误
+- Runtime files (main.js, manifest.json, styles.css, assets/) 在 ALL、YS 之间字节一致；各 vault 保留各自 `data.json`
+
 ## v0.3.19 Expanded orb library
 
 Verified on 2026-08-04 in the ALL and YS vaults.
