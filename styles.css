@@ -304,6 +304,8 @@ body .crisp-reading-rail-native-scrollbar::-webkit-scrollbar {
 .crisp-reading-rail .crisp-reading-rail__orb[data-orb-style="snorlaxface"],
 .crisp-reading-rail .crisp-reading-rail__orb[data-orb-style="batman"],
 .crisp-reading-rail .crisp-reading-rail__orb[data-orb-style="superman"],
+.crisp-reading-rail .crisp-reading-rail__orb[data-orb-style="character4"],
+.crisp-reading-rail .crisp-reading-rail__orb[data-orb-style="character5"],
 .crisp-reading-rail .crisp-reading-rail__orb[data-orb-style="spiderman"] {
   width: 24px;
   height: 24px;

@@ -20,7 +20,7 @@ describe("orb styles", () => {
   });
 
   it("exposes the complete approved setting menu", () => {
-    expect(ORB_STYLE_OPTIONS).toHaveLength(36);
+    expect(ORB_STYLE_OPTIONS).toHaveLength(38);
     expect(ORB_STYLE_OPTIONS[0]).toEqual({
       value: "followFileExplorer",
       label: "Follow Crisp File Explorer",
@@ -33,7 +33,7 @@ describe("orb styles", () => {
   });
 
   it("maps every material style to inline SVG or an owned asset", () => {
-    expect(RANDOM_DAILY_ORB_STYLES).toHaveLength(33);
+    expect(RANDOM_DAILY_ORB_STYLES).toHaveLength(35);
 
     for (const style of RANDOM_DAILY_ORB_STYLES) {
       expect(Boolean(INLINE_ORB_SVGS[style] ?? IMAGE_ORB_ASSETS[style])).toBe(true);
@@ -44,6 +44,8 @@ describe("orb styles", () => {
         "character1",
         "character2",
         "character3",
+        "character4",
+        "character5",
         "snorlax",
         "pikachu",
         "snorlaxface",
@@ -73,9 +75,11 @@ describe("orb styles", () => {
       batman: "assets/batman.svg",
       superman: "assets/superman.svg",
       spiderman: "assets/spider-man.svg",
+      character4: "assets/character4.svg",
+      character5: "assets/character5.svg",
     });
 
-    for (const style of ["snorlax", "pikachu", "snorlaxface", "batman", "superman", "spiderman"] as const) {
+    for (const style of ["snorlax", "pikachu", "snorlaxface", "batman", "superman", "spiderman", "character4", "character5"] as const) {
       expect(STATIC_ORB_STYLES.has(style)).toBe(true);
     }
     for (const style of ["soccer", "basketball", "tennis", "shutup", "pokeball", "bracelet", "angry", "squint", "facemask", "pokerface", "captainshield"] as const) {

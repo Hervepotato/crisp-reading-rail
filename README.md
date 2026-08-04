@@ -32,7 +32,7 @@ Crisp Reading Rail adds a compact reading-progress and heading-navigation rail t
 
 ## Orb style setting
 
-Open **Settings → Crisp Reading Rail → Orb style** to choose Default, Random per day, 33 material/character styles, or **Follow Crisp File Explorer**. Follow mode observes only the companion orb's live `data-orb-style` value in the same Obsidian window; if it is unavailable, the rail uses Default.
+Open **Settings → Crisp Reading Rail → Orb style** to choose Default, Random per day, 35 material/character styles, or **Follow Crisp File Explorer**. Follow mode observes only the companion orb's live `data-orb-style` value in the same Obsidian window; if it is unavailable, the rail uses Default.
 
 All SVG and PNG resources used by Crisp Reading Rail are installed in this plugin's own `assets/` directory. It does not read Crisp File Explorer's files or private settings at runtime.
 

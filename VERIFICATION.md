@@ -1,5 +1,22 @@
 # Crisp Reading Rail verification
 
+## v0.3.22 Expanded character library
+
+Verified on 2026-08-04 in the ALL vault.
+
+### Added
+
+- 新增 Character 4、Character 5 两种静态人物 Orb（SVG 素材），静态人物总数 9 → 11
+- 设置菜单与 Random per day 列表扩展至 35 种材质/人物样式
+
+### Automated gate
+
+- `npm run check` passed with 13 test files and 107 tests, followed by ESLint, TypeScript, and a production build.
+
+### Live Obsidian acceptance
+
+- ALL 重载后 `dev:errors` 无错误；Character 4/5 以 24px 静态人物渲染，居中无偏移
+
 ## v0.3.21 Static character orb sizing
 
 Verified on 2026-08-04 in the ALL vault.
