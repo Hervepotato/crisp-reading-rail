@@ -149,5 +149,21 @@ export function headingTextFromMarkdown(markdown: string): string {
     index = destinationEnd;
   }
 
-  return result.trim();
+  return stripInlineMarkdown(result);
+}
+
+function stripInlineMarkdown(text: string): string {
+  return text
+    .replace(/%%[\s\S]*?%%/g, "")
+    .replace(/`([^`]+)`/g, "$1")
+    .replace(/\*\*\*([^*]+)\*\*\*/g, "$1")
+    .replace(/\*\*([^*]+)\*\*/g, "$1")
+    .replace(/(?<!\*)\*([^*]+)\*(?!\*)/g, "$1")
+    .replace(/__([^_]+)__/g, "$1")
+    .replace(/(?<![\w])_([^_]+)_(?![\w])/g, "$1")
+    .replace(/~~([^~]+)~~/g, "$1")
+    .replace(/==([^=]+)==/g, "$1")
+    .replace(/^#{1,6}\s+/, "")
+    .replace(/\s+/g, " ")
+    .trim();
 }

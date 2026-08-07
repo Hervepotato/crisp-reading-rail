@@ -1,5 +1,22 @@
 # Crisp Reading Rail verification
 
+## v0.3.26 Inline Markdown stripping in dense outline
+
+Verified on 2026-08-07 in the ALL vault.
+
+### Fixed
+
+- `headingTextFromMarkdown()` now strips inline formatting markers (`**`, `*`, `__`, `_`, `~~`, `` ` ``, `==`, `%%`, residual `#`) from heading labels. Previously, long documents with many headings triggered the virtualized source-text path, which passed raw Markdown syntax (e.g. `**bold**`, `~~deleted~~`) into the dense scrollable outline labels.
+
+### Automated gate
+
+- `npm run check` passed with 13 test files and 120 tests (heading-text tests 2 → 13), followed by ESLint, TypeScript, and a production build.
+
+### Live Obsidian acceptance
+
+- ALL/YS 均已部署 0.3.26 并重载，`dev:errors` 均为 `No errors captured.`；运行版本 `{"loaded":true,"version":"0.3.26"}`。
+- 待用户在含 `**bold**`/`~~strike~~`/`` `code` `` 等行内格式的长文档中手工确认密集滚动列表标签已清除 Markdown 标记。
+
 ## v0.3.22 Expanded character library
 
 Verified on 2026-08-04 in the ALL vault.
