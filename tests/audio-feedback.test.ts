@@ -72,17 +72,21 @@ function makeEnvironment(
   fixture: FakeAudioFixture,
   now: () => number,
 ): Omit<ReadingRailAudioEnvironment, "createContext" | "debug"> & {
-  createContext: Mock<() => AudioContext | null>;
+  createContext: Mock<(window: Window) => AudioContext | null>;
   debug: Mock<(message: string, error: unknown) => void>;
 } {
   return {
     now,
-    createContext: vi.fn<() => AudioContext | null>(() => fixture.context),
+    createContext: vi.fn<(window: Window) => AudioContext | null>(
+      () => fixture.context,
+    ),
     debug: vi.fn<(message: string, error: unknown) => void>(),
   };
 }
 
 describe("ReadingRailAudio", () => {
+  const testWindow = {} as Window;
+
   it("stays completely lazy while disabled and throttles dense drag ticks", () => {
     let enabled = false;
     let now = 0;
@@ -90,11 +94,11 @@ describe("ReadingRailAudio", () => {
     const environment = makeEnvironment(fixture, () => now);
     const audio = new ReadingRailAudio(() => enabled, environment);
 
-    audio.tick();
+    audio.tick(undefined, testWindow);
     expect(environment.createContext).not.toHaveBeenCalled();
 
     enabled = true;
-    audio.tick();
+    audio.tick(undefined, testWindow);
     expect(environment.createContext).toHaveBeenCalledOnce();
     expect(fixture.oscillators).toHaveLength(1);
     expect(fixture.oscillators[0].type).toBe("triangle");
@@ -102,11 +106,11 @@ describe("ReadingRailAudio", () => {
       .toHaveBeenCalledWith(0.008, 2.004);
 
     now = 40;
-    audio.tick();
+    audio.tick(undefined, testWindow);
     expect(fixture.oscillators).toHaveLength(1);
 
     now = 90;
-    audio.tick();
+    audio.tick(undefined, testWindow);
     expect(fixture.oscillators).toHaveLength(2);
   });
 
@@ -115,7 +119,7 @@ describe("ReadingRailAudio", () => {
     const environment = makeEnvironment(fixture, () => 100);
     const audio = new ReadingRailAudio(() => true, environment);
 
-    audio.settle();
+    audio.settle(testWindow);
 
     expect(fixture.resume).toHaveBeenCalledOnce();
     expect(fixture.oscillators).toHaveLength(1);
@@ -136,14 +140,42 @@ describe("ReadingRailAudio", () => {
     });
     const audio = new ReadingRailAudio(() => true, environment);
 
-    expect(() => audio.settle()).not.toThrow();
+    expect(() => audio.settle(testWindow)).not.toThrow();
     expect(environment.debug).toHaveBeenCalledOnce();
 
-    audio.tick();
+    audio.tick(undefined, testWindow);
     await audio.destroy();
     await audio.destroy();
 
     expect(fixture.close).toHaveBeenCalledOnce();
+  });
+
+  it("creates and closes one AudioContext per owner window", async () => {
+    const windowA = {} as Window;
+    const windowB = {} as Window;
+    const fixtureA = makeAudioContext();
+    const fixtureB = makeAudioContext();
+    let now = 0;
+    const environment = makeEnvironment(fixtureA, () => now);
+    environment.createContext.mockImplementation((ownerWindow) => (
+      ownerWindow === windowB ? fixtureB.context : fixtureA.context
+    ));
+    const audio = new ReadingRailAudio(() => true, environment);
+
+    now = 100;
+    audio.tick(0.5, windowA);
+    now = 200;
+    audio.settle(windowB);
+    now = 300;
+    audio.tick(0.5, windowA);
+
+    expect(environment.createContext).toHaveBeenCalledTimes(2);
+    expect(fixtureA.oscillators).toHaveLength(2);
+    expect(fixtureB.oscillators).toHaveLength(1);
+
+    await audio.destroy();
+    expect(fixtureA.close).toHaveBeenCalledOnce();
+    expect(fixtureB.close).toHaveBeenCalledOnce();
   });
 
   it("uses the selected sound style and maps drag progress onto the scale", () => {
@@ -154,12 +186,12 @@ describe("ReadingRailAudio", () => {
       getStyle: () => style,
     });
 
-    audio.tick(0);
+    audio.tick(0, testWindow);
     expect(fixture.oscillators[0].frequency.setValueAtTime)
       .toHaveBeenCalledWith(523.25, 2);
 
     style = "retro8bit";
-    audio.settle();
+    audio.settle(testWindow);
     expect(fixture.oscillators[1].type).toBe("square");
     expect(fixture.oscillators[1].frequency.setValueAtTime)
       .toHaveBeenCalledWith(1318, 2);
@@ -175,15 +207,15 @@ describe("ReadingRailAudio", () => {
       isReleaseEnabled: () => releaseEnabled,
     });
 
-    audio.tick();
+    audio.tick(undefined, testWindow);
     expect(fixture.oscillators[0].type).toBe("sine");
     expect(fixture.oscillators[0].frequency.setValueAtTime)
       .toHaveBeenCalledWith(720, 2);
 
-    audio.settle();
+    audio.settle(testWindow);
     expect(fixture.oscillators).toHaveLength(1);
     releaseEnabled = true;
-    audio.settle();
+    audio.settle(testWindow);
     expect(fixture.oscillators).toHaveLength(2);
   });
 
@@ -193,11 +225,11 @@ describe("ReadingRailAudio", () => {
     const environment = makeEnvironment(fixture, () => 100);
     const audio = new ReadingRailAudio(() => enabled, environment);
 
-    audio.completionChime();
+    audio.completionChime(testWindow);
     expect(environment.createContext).not.toHaveBeenCalled();
 
     enabled = true;
-    audio.completionChime();
+    audio.completionChime(testWindow);
     expect(fixture.oscillators).toHaveLength(4);
     expect(fixture.oscillators.map((oscillator) => (
       oscillator.frequency.setValueAtTime.mock.calls[0][0]

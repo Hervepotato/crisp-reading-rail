@@ -727,7 +727,7 @@ describe("ReadingRailController", () => {
     view.callbacks?.onProgressDrag?.(0.1);
     view.callbacks?.onProgressDrag?.(0.7);
 
-    expect(sound.tick).toHaveBeenLastCalledWith(0.7);
+    expect(sound.tick).toHaveBeenLastCalledWith(0.7, expect.anything());
     controller.destroy();
   });
 

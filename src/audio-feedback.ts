@@ -4,14 +4,14 @@ import {
 } from "./sound-styles";
 
 export interface RailSoundProvider {
-  tick(progress?: number): void;
-  settle(): void;
-  completionChime?(): void;
+  tick(progress?: number, window?: Window): void;
+  settle(window?: Window): void;
+  completionChime?(window?: Window): void;
 }
 
 export interface ReadingRailAudioEnvironment {
   now(): number;
-  createContext(): AudioContext | null;
+  createContext(window: Window): AudioContext | null;
   debug(message: string, error: unknown): void;
 }
 
@@ -51,8 +51,8 @@ export function createReadingRailAudioEnvironment(
 ): ReadingRailAudioEnvironment {
   return {
     now: () => window.performance.now(),
-    createContext: () => {
-      const WindowWithAudio = window as Window & {
+    createContext: (ownerWindow) => {
+      const WindowWithAudio = ownerWindow as Window & {
         AudioContext?: typeof AudioContext;
         webkitAudioContext?: typeof AudioContext;
       };
@@ -70,7 +70,8 @@ export class ReadingRailAudio implements RailSoundProvider {
   private readonly getStyle: () => ReadingRailSoundStyle;
   private readonly getCompanionStyle: () => unknown;
   private readonly isReleaseEnabled: () => boolean;
-  private context: AudioContext | null = null;
+  private readonly contexts = new WeakMap<Window, AudioContext>();
+  private readonly contextsToClose: AudioContext[] = [];
   private lastTickAt = Number.NEGATIVE_INFINITY;
 
   constructor(
@@ -85,7 +86,7 @@ export class ReadingRailAudio implements RailSoundProvider {
     this.isReleaseEnabled = options.isReleaseEnabled ?? (() => true);
   }
 
-  tick(progress = 0.5): void {
+  tick(progress = 0.5, window?: Window): void {
     if (!this.isEnabled()) {
       return;
     }
@@ -109,22 +110,22 @@ export class ReadingRailAudio implements RailSoundProvider {
       });
       return;
     }
-    this.play(this.getTickTone(style));
+    this.play(this.getTickTone(style), window);
   }
 
-  settle(): void {
+  settle(window?: Window): void {
     if (!this.isEnabled() || !this.isReleaseEnabled()) {
       return;
     }
-    this.play(this.getSettleTone(this.resolveStyle()));
+    this.play(this.getSettleTone(this.resolveStyle()), window);
   }
 
-  completionChime(): void {
+  completionChime(window?: Window): void {
     if (!this.isEnabled()) {
       return;
     }
     try {
-      const context = this.ensureContext();
+      const context = this.ensureContext(window);
       if (!context) {
         return;
       }
@@ -149,19 +150,39 @@ export class ReadingRailAudio implements RailSoundProvider {
   }
 
   async destroy(): Promise<void> {
-    const context = this.context;
-    this.context = null;
-    if (context && context.state !== "closed") {
-      await context.close();
-    }
+    const contexts = this.contextsToClose.splice(0);
+    await Promise.all(contexts.map(async (context) => {
+      if (context.state !== "closed") {
+        await context.close();
+      }
+    }));
   }
 
-  private ensureContext(): AudioContext | null {
-    this.context ??= this.environment.createContext();
-    if (this.context?.state === "suspended") {
-      void this.context.resume().catch(() => undefined);
+  private ensureContext(window?: Window): AudioContext | null {
+    if (window) {
+      const existing = this.contexts.get(window);
+      if (existing) {
+        this.resumeIfSuspended(existing);
+        return existing;
+      }
     }
-    return this.context;
+    const context = this.environment.createContext(
+      window ?? ({} as Window),
+    );
+    if (context) {
+      this.resumeIfSuspended(context);
+      if (window) {
+        this.contexts.set(window, context);
+        this.contextsToClose.push(context);
+      }
+    }
+    return context;
+  }
+
+  private resumeIfSuspended(context: AudioContext): void {
+    if (context.state === "suspended") {
+      void context.resume().catch(() => undefined);
+    }
   }
 
   private resolveStyle(): Exclude<ReadingRailSoundStyle, "followFileExplorer"> {
@@ -307,9 +328,9 @@ export class ReadingRailAudio implements RailSoundProvider {
     return tones[style];
   }
 
-  private play(options: ToneOptions): void {
+  private play(options: ToneOptions, window?: Window): void {
     try {
-      const context = this.ensureContext();
+      const context = this.ensureContext(window);
       if (!context) {
         return;
       }

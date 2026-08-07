@@ -984,7 +984,7 @@ export class ReadingRailView {
     this.updateReadTicks();
     if (this.currentProgress >= 0.985 && !this.hasCelebratedCompletion) {
       this.hasCelebratedCompletion = true;
-      this.sound?.completionChime?.();
+      this.sound?.completionChime?.(this.window);
       if (!this.environment.reducedMotion()) {
         this.orb.classList.add("is-celebrating");
       }

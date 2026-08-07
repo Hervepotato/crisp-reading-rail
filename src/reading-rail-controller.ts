@@ -136,6 +136,7 @@ export class ReadingRailController {
   private readonly host: HTMLElement;
   private readonly scroller: HTMLElement;
   private readonly preview: HTMLElement;
+  private readonly window: Window | undefined;
   private readonly getHeadings: () => readonly OutlineHeading[];
   private readonly getLineCount: () => number;
   private readonly getWaypoints: () => readonly number[];
@@ -174,6 +175,7 @@ export class ReadingRailController {
     this.host = options.host;
     this.scroller = options.scroller;
     this.preview = options.preview;
+    this.window = options.host.ownerDocument.defaultView ?? undefined;
     this.observedHostWidth = this.host.clientWidth;
     this.observedHostHeight = this.host.clientHeight;
     this.observedScrollerHeight = this.scroller.clientHeight;
@@ -442,7 +444,7 @@ export class ReadingRailController {
     const fallbackProgress = clamp01(entry.progress);
     this.pendingHeadingLine = entry.target?.isConnected ? null : entry.sourceLine;
     if (audible) {
-      this.sound?.settle();
+      this.sound?.settle(this.window);
     }
     this.startNavigation(() => this.getHeadingNavigationTop(
       entry.sourceLine,
@@ -458,7 +460,7 @@ export class ReadingRailController {
     this.pendingHeadingLine = null;
     const safeProgress = clamp01(progress);
     if (audible) {
-      this.sound?.settle();
+      this.sound?.settle(this.window);
     }
     this.startNavigation(() => this.getProgressTop(safeProgress), animated);
   }
@@ -471,7 +473,7 @@ export class ReadingRailController {
       this.lastDragHeadingIndex !== null
       && headingIndex !== this.lastDragHeadingIndex
     ) {
-      this.sound?.tick(this.dragProgress);
+      this.sound?.tick(this.dragProgress, this.window);
     }
     this.lastDragHeadingIndex = headingIndex;
     this.cancelNavigation();
@@ -497,7 +499,7 @@ export class ReadingRailController {
     this.cancelNavigation();
     this.cancelProgressSettlement();
     if (audible) {
-      this.sound?.settle();
+      this.sound?.settle(this.window);
     }
     this.progressSettlement = {
       progress: clamp01(progress),

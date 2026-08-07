@@ -98,9 +98,24 @@ export default class CrispReadingRailPlugin extends Plugin {
       name: "Cycle orb style",
       callback: async () => {
         const current = CYCLE_ORB_STYLES.indexOf(this.settings.orbStyle);
-        this.settings.orbStyle = CYCLE_ORB_STYLES[
+        const nextStyle = CYCLE_ORB_STYLES[
           (current + 1) % CYCLE_ORB_STYLES.length
         ];
+        if (nextStyle !== "soccer") {
+          const check = await verifyLicenseCode(
+            this.settings.licenseCode,
+            "crisp-reading-rail",
+          );
+          if (!check.valid) {
+            new Notice(
+              "🔒 切换其它小球属于 Crisp 激活用户专属功能（未激活仅可使用默认足球）",
+            );
+            this.settings.orbStyle = "soccer";
+            await this.saveSettings();
+            return;
+          }
+        }
+        this.settings.orbStyle = nextStyle;
         await this.saveSettings();
         new Notice(`Orb style set to: ${this.settings.orbStyle}`);
       },
