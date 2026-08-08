@@ -11,6 +11,10 @@ Crisp Reading Rail adds a compact reading-progress and heading-navigation rail t
 
 - 全部 35 款 orb 素材改为内联（26 个 SVG 直接嵌入 + 3 个角色 PNG 以 base64 内嵌），BRAT / 社区市场安装不再依赖仓库 `assets/` 文件夹，付费小球在任意安装方式下都能正常显示。
 
+## v0.3.29 behavior
+
+- 修复内联 SVG 时误删子元素 class 导致 character4 变成纯黑的问题：现在只规范化根 `<svg>` 标签，保留元素级 class 与 `<style>` 填充定义。
+
 ## v0.3.26 behavior
 
 - Strips inline Markdown formatting (`**`, `*`, `__`, `_`, `~~`, `` ` ``, `==`, `%%`) from heading labels in the dense scrollable outline so that raw syntax never appears — labels now match Reading view text.

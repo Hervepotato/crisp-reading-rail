@@ -48,16 +48,22 @@ function escapeTemplateLiteral(value) {
 }
 
 function cleanSvg(source) {
-  return source
+  let cleaned = source
     .replace(/<\?xml[^>]*\?>/gi, "")
     .replace(/<!--[\s\S]*?-->/g, "")
-    .replace(/width="[^"]*"/gi, "")
-    .replace(/height="[^"]*"/gi, "")
-    .replace(/class="[^"]*"/gi, "")
     .replace(/^[\s\S]*?(<svg)/i, "$1")
-    .replace(/>\s+</g, "><")
-    .replace(/\s+/g, " ")
     .trim();
+  // Normalize only the root <svg> tag: drop width/height/legacy class and
+  // apply the orb class. Child element classes (e.g. cls-N fills) must stay.
+  cleaned = cleaned.replace(/^(<svg)\b([^>]*)>/i, (_match, open, attrs) => {
+    const cleanedAttrs = attrs
+      .replace(/\s+width="[^"]*"/gi, "")
+      .replace(/\s+height="[^"]*"/gi, "")
+      .replace(/\s+class="[^"]*"/gi, "")
+      .trim();
+    return `${open} class="crisp-fe-orb-ball"${cleanedAttrs ? ` ${cleanedAttrs}` : ""}>`;
+  });
+  return cleaned;
 }
 
 function extractExistingInline(style) {
