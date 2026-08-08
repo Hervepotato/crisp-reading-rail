@@ -796,7 +796,7 @@ describe("ReadingRailView", () => {
     expect(translateY(host.querySelector(".crisp-reading-rail__active"))).toBe(240);
   });
 
-  it("renders replacement and character assets, keeps characters upright, and falls back on image error", () => {
+  it("renders inline replacement orbs, keeps characters upright, and falls back on image error", () => {
     let style: "soccer" | "character1" = "soccer";
     const host = document.createElement("div");
     const view = ReadingRailView.mount(host, {
@@ -810,14 +810,13 @@ describe("ReadingRailView", () => {
     });
     const orb = host.querySelector<HTMLElement>(".crisp-reading-rail__orb")!;
     expect(orb.dataset.orbStyle).toBe("soccer");
-    const soccer = orb.querySelector<HTMLImageElement>("img")!;
-    expect(soccer.src).toContain("app://reading-rail/assets/soccer.svg");
-    expect(orb.querySelector("svg")).toBeNull();
+    expect(orb.querySelector("svg")).not.toBeNull();
+    expect(orb.querySelector("img")).toBeNull();
 
     style = "character1";
     view.refreshAppearance();
     const image = orb.querySelector<HTMLImageElement>("img")!;
-    expect(image.src).toContain("app://reading-rail/assets/character1.png");
+    expect(image.src).toMatch(/^data:image\/png;base64,/);
     view.setProgress(0.5);
     expect(image.style.transform).toBe("");
 
@@ -826,7 +825,7 @@ describe("ReadingRailView", () => {
     expect(orb.querySelector("img")).toBeNull();
   });
 
-  it("rotates file-backed orbs through a stable square wrapper", () => {
+  it("rotates inline orbs through a stable square wrapper", () => {
     const host = document.createElement("div");
     const view = ReadingRailView.mount(host, {
       onHeadingSelect: vi.fn(),
@@ -843,11 +842,11 @@ describe("ReadingRailView", () => {
     view.setProgress(0.5);
 
     const media = host.querySelector<HTMLElement>(".crisp-reading-rail__orb-media")!;
-    const image = host.querySelector<HTMLImageElement>(".crisp-reading-rail__orb-image")!;
+    const svg = media.querySelector("svg")!;
     expect(media.tagName).toBe("SPAN");
-    expect(media.contains(image)).toBe(true);
+    expect(media.contains(svg)).toBe(true);
     expect(media.style.transform).toMatch(/^rotate\(.+deg\)$/);
-    expect(image.style.transform).toBe("");
+    expect(svg.style.transform).toBe("");
   });
 
   it("follows the companion DOM style and disconnects owned observers and frames", () => {

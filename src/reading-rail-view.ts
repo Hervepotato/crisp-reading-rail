@@ -6,8 +6,8 @@ import {
 } from "./motion";
 import type { RailSoundProvider } from "./audio-feedback";
 import {
-  IMAGE_ORB_ASSETS,
   INLINE_ORB_SVGS,
+  ORB_IMAGE_DATA_URLS,
   STATIC_ORB_STYLES,
   resolveOrbStyle,
   type OrbStyleSetting,
@@ -610,15 +610,15 @@ export class ReadingRailView {
       return;
     }
 
-    const assetPath = IMAGE_ORB_ASSETS[style];
-    if (assetPath) {
+    const imageDataUrl = ORB_IMAGE_DATA_URLS[style];
+    if (imageDataUrl) {
       const wrapper = this.root.ownerDocument.createElement("span");
       wrapper.className = "crisp-reading-rail__orb-media";
       const image = this.root.ownerDocument.createElement("img");
       image.className = "crisp-reading-rail__orb-image";
       image.alt = "";
       image.draggable = false;
-      image.src = this.appearance.getAssetUrl(assetPath);
+      image.src = imageDataUrl;
       image.onerror = () => {
         if (this.orbImage === image) {
           this.applyOrbStyle("default");

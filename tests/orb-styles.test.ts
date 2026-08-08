@@ -2,8 +2,8 @@
 
 import { describe, expect, it } from "vitest";
 import {
-  IMAGE_ORB_ASSETS,
   INLINE_ORB_SVGS,
+  ORB_IMAGE_DATA_URLS,
   ORB_STYLE_OPTIONS,
   RANDOM_DAILY_ORB_STYLES,
   STATIC_ORB_STYLES,
@@ -36,7 +36,8 @@ describe("orb styles", () => {
     expect(RANDOM_DAILY_ORB_STYLES).toHaveLength(35);
 
     for (const style of RANDOM_DAILY_ORB_STYLES) {
-      expect(Boolean(INLINE_ORB_SVGS[style] ?? IMAGE_ORB_ASSETS[style])).toBe(true);
+      expect(Boolean(INLINE_ORB_SVGS[style] ?? ORB_IMAGE_DATA_URLS[style]))
+        .toBe(true);
     }
 
     expect(STATIC_ORB_STYLES).toEqual(
@@ -56,28 +57,13 @@ describe("orb styles", () => {
     );
   });
 
-  it("uses owned replacement assets and rotates only circular additions", () => {
-    expect(IMAGE_ORB_ASSETS).toMatchObject({
-      soccer: "assets/soccer.svg",
-      basketball: "assets/basketball.svg",
-      tennis: "assets/tennis.svg",
-      shutup: "assets/shut-up.svg",
-      snorlax: "assets/snorlax.svg",
-      pikachu: "assets/pikachu.svg",
-      pokeball: "assets/poke-ball.svg",
-      bracelet: "assets/bracelet.svg",
-      snorlaxface: "assets/snorlax-face.svg",
-      angry: "assets/angry.svg",
-      squint: "assets/squint.svg",
-      facemask: "assets/face-mask.svg",
-      pokerface: "assets/poker-face.svg",
-      captainshield: "assets/captain-america-shield.svg",
-      batman: "assets/batman.svg",
-      superman: "assets/superman.svg",
-      spiderman: "assets/spider-man.svg",
-      character4: "assets/character4.svg",
-      character5: "assets/character5.svg",
+  it("embeds every orb inline and keeps only character PNGs as data URLs", () => {
+    expect(ORB_IMAGE_DATA_URLS).toMatchObject({
+      character1: expect.stringMatching(/^data:image\/png;base64,/),
+      character2: expect.stringMatching(/^data:image\/png;base64,/),
+      character3: expect.stringMatching(/^data:image\/png;base64,/),
     });
+    expect(ORB_IMAGE_DATA_URLS.character1?.length).toBeGreaterThan(1000);
 
     for (const style of ["snorlax", "pikachu", "snorlaxface", "batman", "superman", "spiderman", "character4", "character5"] as const) {
       expect(STATIC_ORB_STYLES.has(style)).toBe(true);

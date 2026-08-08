@@ -1,4 +1,7 @@
-import { INLINE_ORB_SVGS as GENERATED_INLINE_ORB_SVGS } from "./orb-svgs.generated";
+import {
+  INLINE_ORB_SVGS as GENERATED_INLINE_ORB_SVGS,
+  ORB_IMAGE_DATA_URLS as GENERATED_ORB_IMAGE_DATA_URLS,
+} from "./orb-svgs.generated";
 
 export const RANDOM_DAILY_ORB_STYLES = [
   "soccer",
@@ -93,37 +96,8 @@ export const ORB_STYLE_OPTIONS: ReadonlyArray<{
 export const INLINE_ORB_SVGS: Partial<Record<MaterialOrbStyle, string>> =
   GENERATED_INLINE_ORB_SVGS;
 
-export const IMAGE_ORB_ASSETS: Partial<Record<MaterialOrbStyle, string>> = {
-  soccer: "assets/soccer.svg",
-  basketball: "assets/basketball.svg",
-  tennis: "assets/tennis.svg",
-  character1: "assets/character1.png",
-  character2: "assets/character2.png",
-  character3: "assets/character3.png",
-  character4: "assets/character4.svg",
-  character5: "assets/character5.svg",
-  shutup: "assets/shut-up.svg",
-  snorlax: "assets/snorlax.svg",
-  pikachu: "assets/pikachu.svg",
-  pokeball: "assets/poke-ball.svg",
-  bracelet: "assets/bracelet.svg",
-  snorlaxface: "assets/snorlax-face.svg",
-  fear: "assets/fear.svg",
-  devil: "assets/devil.svg",
-  fan: "assets/fan.svg",
-  gear: "assets/gear.svg",
-  alfresco: "assets/alfresco.svg",
-  mercedes: "assets/mercedes.svg",
-  taiga: "assets/taiga.svg",
-  angry: "assets/angry.svg",
-  squint: "assets/squint.svg",
-  facemask: "assets/face-mask.svg",
-  pokerface: "assets/poker-face.svg",
-  captainshield: "assets/captain-america-shield.svg",
-  batman: "assets/batman.svg",
-  superman: "assets/superman.svg",
-  spiderman: "assets/spider-man.svg",
-};
+export const ORB_IMAGE_DATA_URLS: Partial<Record<MaterialOrbStyle, string>> =
+  GENERATED_ORB_IMAGE_DATA_URLS;
 
 export const STATIC_ORB_STYLES = new Set<MaterialOrbStyle>([
   "character1",
