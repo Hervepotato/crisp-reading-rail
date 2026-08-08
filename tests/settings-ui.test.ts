@@ -7,8 +7,8 @@ describe("settings UI groups", () => {
     const container = document.createElement("div");
     const content = createSettingGroup(
       container,
-      "Audio & touch feedback",
-      "Quiet navigation sounds.",
+      "音效与触感反馈",
+      "轻柔的导航音效。",
       true,
     );
     const card = container.querySelector<HTMLDetailsElement>(
@@ -17,8 +17,8 @@ describe("settings UI groups", () => {
     const summary = card?.querySelector("summary.crisp-rr-setting-card__header");
 
     expect(card?.open).toBe(true);
-    expect(summary?.textContent).toContain("Audio & touch feedback");
-    expect(summary?.textContent).toContain("Quiet navigation sounds.");
+    expect(summary?.textContent).toContain("音效与触感反馈");
+    expect(summary?.textContent).toContain("轻柔的导航音效。");
     expect(content.classList.contains("crisp-rr-setting-card__content")).toBe(true);
 
     summary?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
@@ -37,7 +37,7 @@ describe("settings UI groups", () => {
     const card = container.querySelector(".crisp-rr-about");
     const author = card?.querySelector<HTMLAnchorElement>("a");
     expect(card?.querySelector("h3")?.textContent).toBe(
-      "About Crisp Reading Rail",
+      "关于 Crisp Reading Rail",
     );
     expect(card?.textContent).toContain(
       "用阅读轨道、位置提示与快捷导航，让长文阅读始终知道自己在哪里。",

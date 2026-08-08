@@ -310,14 +310,14 @@ class CrispReadingRailSettingTab extends PluginSettingTab {
 
     const visualBody = createSettingGroup(
       containerEl,
-      "Orb & visual appearance",
-      "Reading-position orb style and companion tracking rules.",
+      "小球与视觉外观",
+      "阅读位置小球样式与联动追踪规则。",
       true,
     );
 
     new Setting(visualBody)
-      .setName("Orb style")
-      .setDesc("Choose the reading-position orb appearance.")
+      .setName("小球样式")
+      .setDesc("选择阅读位置小球的样式。")
       .addDropdown((dropdown) => {
         for (const option of ORB_STYLE_OPTIONS) {
           dropdown.addOption(option.value, option.label);
@@ -343,15 +343,15 @@ class CrispReadingRailSettingTab extends PluginSettingTab {
 
     const audioBody = createSettingGroup(
       containerEl,
-      "Audio & touch feedback",
-      "Quiet feedback while dragging or navigating the reading rail.",
+      "音效与触感反馈",
+      "拖动或导航阅读轨道时播放轻柔反馈。",
       true,
     );
 
     new Setting(audioBody)
-      .setName("Navigation sound")
+      .setName("导航音效")
       .setDesc(
-        "Play very soft feedback only when directly using the reading rail. Normal reading stays silent.",
+        "只在直接使用阅读轨道时播放轻柔反馈；正常阅读保持静音。",
       )
       .addToggle((toggle) => {
         toggle
@@ -363,9 +363,9 @@ class CrispReadingRailSettingTab extends PluginSettingTab {
       });
 
     new Setting(audioBody)
-      .setName("Sound style")
+      .setName("音效风格")
       .setDesc(
-        "Choose a quiet sound palette, or follow Crisp File Explorer's current sound style.",
+        "选择安静的音色组合，或跟随 Crisp File Explorer 当前的音效风格。",
       )
       .addDropdown((dropdown) => {
         for (const option of READING_RAIL_SOUND_STYLE_OPTIONS) {
@@ -380,9 +380,9 @@ class CrispReadingRailSettingTab extends PluginSettingTab {
       });
 
     new Setting(audioBody)
-      .setName("Release / settle sound")
+      .setName("落定音效")
       .setDesc(
-        "Play a soft confirmation after a heading jump or completed drag.",
+        "标题跳转或拖动结束后播放轻柔确认音。",
       )
       .addToggle((toggle) => {
         toggle
@@ -395,17 +395,16 @@ class CrispReadingRailSettingTab extends PluginSettingTab {
 
     const outlineBody = createSettingGroup(
       containerEl,
-      "Outline & reading rail interaction",
-      "Heading navigation, reading waypoints, and keyboard controls.",
+      "大纲与阅读轨道交互",
+      "标题导航、阅读书签与键盘操作。",
       false,
     );
     const description = outlineBody.ownerDocument.createElement("p");
     description.className = "setting-item-description";
     description.textContent = [
-      "The rail indexes H2–H4 headings in Reading view. ",
-      "Double-click the track or press M while it is focused to save a ",
-      "waypoint for the current note. Right-click a waypoint, or focus it ",
-      "and press Delete, to remove it.",
+      "轨道索引阅读视图中的 H2–H4 标题。",
+      "双击轨道，或聚焦轨道后按 M，可为当前笔记保存阅读书签。",
+      "右键书签（或聚焦后按 Delete）可删除。",
     ].join("");
     outlineBody.append(description);
 

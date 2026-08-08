@@ -1,16 +1,16 @@
 export const READING_RAIL_SOUND_STYLE_OPTIONS = [
   {
     value: "followFileExplorer",
-    label: "Follow Crisp File Explorer",
+    label: "跟随 Crisp File Explorer",
   },
-  { value: "soft", label: "Soft tick" },
-  { value: "scale", label: "Marimba music box scale" },
-  { value: "wooden", label: "Crisp wooden block" },
-  { value: "mechanical", label: "Mechanical blue switch" },
-  { value: "raindrop", label: "Crystal water drop" },
-  { value: "retro8bit", label: "Retro 8-bit game" },
-  { value: "watchgear", label: "Vintage watch gear" },
-  { value: "bubble", label: "Bubble pop" },
+  { value: "soft", label: "轻柔滴答" },
+  { value: "scale", label: "马林巴八音盒音阶" },
+  { value: "wooden", label: "清脆木块" },
+  { value: "mechanical", label: "机械青轴" },
+  { value: "raindrop", label: "水晶水滴" },
+  { value: "retro8bit", label: "复古 8-bit 游戏" },
+  { value: "watchgear", label: "复古腕表齿轮" },
+  { value: "bubble", label: "泡泡破裂" },
 ] as const;
 
 export type ReadingRailSoundStyle =

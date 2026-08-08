@@ -53,9 +53,9 @@ export const ORB_STYLE_OPTIONS: ReadonlyArray<{
   value: OrbStyleSetting;
   label: string;
 }> = [
-  { value: "followFileExplorer", label: "Follow Crisp File Explorer" },
-  { value: "default", label: "Default" },
-  { value: "randomDaily", label: "Random per day" },
+  { value: "followFileExplorer", label: "跟随 Crisp File Explorer" },
+  { value: "default", label: "默认" },
+  { value: "randomDaily", label: "每日随机" },
   { value: "soccer", label: "Soccer" },
   { value: "basketball", label: "Basketball" },
   { value: "redball", label: "Red ball" },

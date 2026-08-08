@@ -23,7 +23,7 @@ describe("orb styles", () => {
     expect(ORB_STYLE_OPTIONS).toHaveLength(38);
     expect(ORB_STYLE_OPTIONS[0]).toEqual({
       value: "followFileExplorer",
-      label: "Follow Crisp File Explorer",
+      label: "跟随 Crisp File Explorer",
     });
     expect(ORB_STYLE_OPTIONS[ORB_STYLE_OPTIONS.length - 1]).toEqual({
       value: "spiderman",

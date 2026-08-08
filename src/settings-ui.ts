@@ -46,7 +46,7 @@ export function createAboutCard(
 
   const title = document.createElement("h3");
   title.className = "crisp-rr-about__title";
-  title.textContent = `About ${pluginName}`;
+  title.textContent = `关于 ${pluginName}`;
 
   const copy = document.createElement("p");
   copy.className = "crisp-rr-about__description";

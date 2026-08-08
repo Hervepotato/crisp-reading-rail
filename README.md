@@ -15,6 +15,10 @@ Crisp Reading Rail adds a compact reading-progress and heading-navigation rail t
 
 - 修复内联 SVG 时误删子元素 class 导致 character4 变成纯黑的问题：现在只规范化根 `<svg>` 标签，保留元素级 class 与 `<style>` 填充定义。
 
+## v0.3.30 behavior
+
+- 设置页全面汉化：分组标题、设置项与描述改为中文；小球素材名称保持英文，音效风格选项已汉化。
+
 ## v0.3.26 behavior
 
 - Strips inline Markdown formatting (`**`, `*`, `__`, `_`, `~~`, `` ` ``, `==`, `%%`) from heading labels in the dense scrollable outline so that raw syntax never appears — labels now match Reading view text.
